@@ -1,0 +1,168 @@
+<!--
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright (c) 2012, ABlogiX. All rights reserved.                   *
+ *                                                                     *
+ * This file is part of APIWATCH and published under the BSD license.  *
+ *                                                                     *
+ * See the "LICENSE" file for more information.                        *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ -->
+<html>
+<head>
+#parse( "/templates/parts/header.part" )
+<script type="text/javascript" src="/js/jquery.jstree.js"></script>
+<script type="text/javascript" src="/js/jquery.jstree.grid.js"></script>
+<style>
+div#apitree {
+    margin: 20px 5px;
+    font-family: monospace;
+}
+div#apitree span.type {
+    font-family: monospace;
+    font-weight: normal !important;
+    color: blue;
+}
+div#apitree span.modifiers {
+    font-family: monospace;
+    font-style: italic;
+    font-weight: normal !important;
+    color: green;
+}
+</style>
+</head>
+<body>
+#parse( "/templates/parts/navbar.part" )
+<div class="container">
+    <div class="page-header">
+        <h1>$page_title <small>Version</small></h1>
+    </div>
+    <p><a href="../">Back to versions list</a></p>
+	<form id="search-form">
+	    <input id="search-txt" type="text" />
+	    <button type="submit" id="submit-btn">Search</button>
+	    <button id="reset-btn">Reset</button>
+	    <button id="collapse-btn">Collapse All</button>
+	    <select id="visibility-select">
+#for( $vis in $visibilities )
+	        <option value="$vis"
+#if( $vis == $threshold ) 
+                    selected="selected"
+#end
+                    >$vis</option>
+	    </select>
+	</form>
+    <div id="apitree"></div>
+</div>
+#parse( "/templates/parts/footer.part" )
+<script type="text/javascript">
+$(document).ready(function () {
+    $('#apitree').jstree({
+        plugins: [ 'themes' , 'json_data' , 'ui', 'types', 'sort', 'search', 'grid' ],
+        core: {
+            animation: 150,
+            html_titles: true,
+        },
+        ui: {
+            select_limit: 1,
+        },
+        themes: {
+            url: '/css/jstree.css',
+            dots: true,
+            icons: true,
+        },
+        search: {
+            case_insensitive: true,
+            show_only_matches: true,
+        },
+        types: {
+            max_depth: -2,
+            max_children: -2,
+            types: {
+                'dependency':           {icon: {image: '/img/dependency.gif'}},
+                
+                'apiscope_public':      {icon: {image: '/img/apiscope-public.gif'}},
+                'apiscope_scope':       {icon: {image: '/img/apiscope-scope.gif'}},
+                'apiscope_protected':   {icon: {image: '/img/apiscope-protected.gif'}},
+                'apiscope_private':     {icon: {image: '/img/apiscope-private.gif'}},
+                
+                'simpletype_public':    {icon: {image: '/img/simpletype-public.gif'}},
+                'simpletype_scope':     {icon: {image: '/img/simpletype-scope.gif'}},
+                'simpletype_protected': {icon: {image: '/img/simpletype-protected.gif'}},
+                'simpletype_private':   {icon: {image: '/img/simpletype-private.gif'}},
+                
+                'complextype_public':   {icon: {image: '/img/complextype-public.gif'}},
+                'complextype_scope':    {icon: {image: '/img/complextype-scope.gif'}},
+                'complextype_protected':{icon: {image: '/img/complextype-protected.gif'}},
+                'complextype_private':  {icon: {image: '/img/complextype-private.gif'}},
+                
+                'function_public':      {icon: {image: '/img/function-public.gif'}},
+                'function_scope':       {icon: {image: '/img/function-scope.gif'}},
+                'function_private':     {icon: {image: '/img/function-private.gif'}},
+                'function_protected':   {icon: {image: '/img/function-protected.gif'}},
+                
+                'variable_public':      {icon: {image: '/img/variable-public.gif'}},
+                'variable_scope':       {icon: {image: '/img/variable-scope.gif'}},
+                'variable_protected':   {icon: {image: '/img/variable-protected.gif'}},
+                'variable_private':     {icon: {image: '/img/variable-private.gif'}},
+            },
+        },
+        sort: function (a, b) {
+            if ('rel' in a.attributes && 'rel' in b.attributes 
+                           && a.attributes.rel.value != b.attributes.rel.value) {
+                return a.attributes.rel.value > b.attributes.rel.value ? 1 : -1;
+            } else {
+                return this.get_text(a) > this.get_text(b) ? 1 : -1;
+            }         
+        },
+        json_data: {
+            progressive_render: true,
+            data: $jsTreeData,
+        },
+        grid: {
+            columns: [
+                {value: 'return_type',  cellClass: 'type'},
+                {value: 'var_type',     cellClass: 'type'},
+                {value: 'super_types',  cellClass: 'type'},
+                {value: 'modifiers',    cellClass: 'modifiers'},
+            ],
+            width: 0,
+        },
+    });
+    
+    $('#apitree').delegate('a', 'click', function (event, data) { 
+        event.preventDefault(); 
+    });
+
+    $('#apitree').delegate('a', 'dblclick', function(e) {
+        $('#apitree').jstree('toggle_node', $(this).parent());
+    });
+    
+    $('#search-form').on('submit', function (event) {
+        event.preventDefault();
+        var text = $('#search-txt').val();
+        if (text != '') {
+            $('#apitree').jstree('open_all');
+            $('#apitree').jstree('search', $('#search-txt').val());
+        }
+    });
+    
+    $('#reset-btn').on('click', function (event) {
+        event.preventDefault();
+        $('#search-txt').val('');
+        $('#apitree').jstree('close_all');
+        $('#apitree').jstree('clear_search');
+    });
+
+    $('#collapse-btn').on('click', function (event) {
+        event.preventDefault();
+        $('#apitree').jstree('close_all');
+    });
+
+    $('#visibility-select').on('change', function () {
+        window.location = '?visibility=' + $('#visibility-select').val();
+    });
+    
+});
+</script>
+</body>
+</html>

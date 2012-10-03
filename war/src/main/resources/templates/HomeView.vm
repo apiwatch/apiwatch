@@ -1,0 +1,51 @@
+<!--
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright (c) 2012, ABlogiX. All rights reserved.                   *
+ *                                                                     *
+ * This file is part of APIWATCH and published under the BSD license.  *
+ *                                                                     *
+ * See the "LICENSE" file for more information.                        *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ -->
+<html>
+<head>
+#parse( "/templates/parts/header.part" )
+</head>
+<body>
+#parse( "/templates/parts/navbar.part" )
+<div class="container">
+    <div class="page-header">
+        <h1>$page_title</h1>
+    </div>
+    
+    <table class="table table-bordered table-condensed table-hover table-striped">
+        <thead>
+            <tr>
+                <th>Component name</th>
+                <th>Registered versions</th>
+            </tr>
+        </thead>
+        <tbody>
+#if( $components.size() > 0 )
+#foreach( $e in $components.entrySet() )
+            <tr>
+                <td><a href="$e.getKey().Name/">$e.getKey().Name</a></td>
+                <td>
+#foreach( $v in $e.getValue() )
+                    <span class="label"><a href="$e.getKey().Name/$v.Name/">$v.Name</a></span>
+#end
+                </td>
+            </tr>
+#end
+        </tbody>
+    </table>
+    </ul>
+#else
+            <tr><td colspan="2">No component has been registered yet!</td></tr>
+#end
+        </tbody>
+    </table>
+</div>
+#parse( "/templates/parts/footer.part" )
+</body>
+</html>

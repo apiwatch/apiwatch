@@ -1,0 +1,71 @@
+<!--
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright (c) 2012, ABlogiX. All rights reserved.                   *
+ *                                                                     *
+ * This file is part of APIWATCH and published under the BSD license.  *
+ *                                                                     *
+ * See the "LICENSE" file for more information.                        *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ -->
+<html>
+<head>
+#parse( "/templates/parts/header.part" )
+</head>
+<body>
+#parse( "/templates/parts/navbar.part" )
+<div class="container">
+    <div class="page-header">
+        <h1>$component.Name <small>Component</small></h1>
+    </div>
+    
+    <p><a href="../">Back to component list...</a></p>
+    
+    <table class="table table-bordered table-condensed table-hover table-striped">
+        <thead>
+            <tr>
+                <th>Version name</th>
+                <th>Date</th>
+                <th>A</th>
+                <th>B</th>
+            </tr>
+        </thead>
+        <tbody>
+#if( $component.getVersions().size() > 0 )
+#foreach( $ver in $component.getVersions() )
+            <tr>
+                <td><a href="$ver.Name/">$ver.Name</a></td>
+#if( $ver.AliasOf )
+                <td>Alias for <span class="label"><a href="$ver.AliasOf.Name/">$ver.AliasOf.Name</a></span></td>
+#else
+                <td>$ver.Date</td>
+#end
+                <td><input class="A" type="radio" name="A" value="$ver.Name"/></td>
+                <td><input class="B" type="radio" name="B" value="$ver.Name"/></td>
+            </tr>
+#end
+        </tbody>
+    </table>
+    </ul>
+#else
+            <tr><td colspan="2">No version of this component has been registered yet!</td></tr>
+#end
+        </tbody>
+    </table>
+    
+    <button id="show-diffs" class="btn btn-primary pull-right">View differences between selected A and B versions</button>
+    
+</div>
+#parse( "/templates/parts/footer.part" )
+<script type="text/javascript">
+$(document).ready(function () {
+    $('#show-diffs').on('click', function (event) {
+        var version_a = $('input.A:checked').val();
+        var version_b = $('input.B:checked').val();
+        if (version_a != undefined && version_b != undefined) {
+            window.location = './' + version_a + '/diff/' + version_b + '/';
+        }
+    });
+});
+</script>
+</body>
+</html>

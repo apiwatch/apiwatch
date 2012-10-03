@@ -1,0 +1,109 @@
+#!/bin/sh
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
+# Copyright (c) 2012, ABlogiX. All rights reserved.                   #
+#                                                                     #
+# This file is part of APIWATCH and published under the BSD license.  #
+#                                                                     #
+# See the "LICENSE" file for more information.                        #
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
+
+# ---------------------------------------------------------------------
+# APIWATCH Start Up Batch script
+# ---------------------------------------------------------------------
+
+# OS specific support.  $var _must_ be set to either true or false.
+cygwin=false;
+darwin=false;
+mingw=false
+case "`uname`" in
+  CYGWIN*) cygwin=true ;;
+  MINGW*) mingw=true;;
+  Darwin*) darwin=true;; 
+esac
+
+if [ -z "$APIWATCH_HOME" ] ; then
+  ## resolve links - $0 may be a link to apiwatch's home
+  PRG="$0"
+
+  # need this for relative symlinks
+  while [ -h "$PRG" ] ; do
+    ls=`ls -ld "$PRG"`
+    link=`expr "$ls" : '.*-> \(.*\)$'`
+    if expr "$link" : '/.*' > /dev/null; then
+      PRG="$link"
+    else
+      PRG="`dirname "$PRG"`/$link"
+    fi
+  done
+
+  saveddir=`pwd`
+
+  APIWATCH_HOME=`dirname "$PRG"`/..
+
+  # make it fully qualified
+  APIWATCH_HOME=`cd "$APIWATCH_HOME" && pwd`
+
+  cd "$saveddir"
+  # echo Using apiwatch at $APIWATCH_HOME
+fi
+
+# For Cygwin, ensure paths are in UNIX format before anything is touched
+if $cygwin ; then
+  [ -n "$APIWATCH_HOME" ] &&
+    APIWATCH_HOME=`cygpath --unix "$APIWATCH_HOME"`
+  [ -n "$CLASSPATH" ] &&
+    CLASSPATH=`cygpath --path --unix "$CLASSPATH"`
+fi
+
+# For Mingw, ensure paths are in UNIX format before anything is touched
+if $mingw ; then
+  [ -n "$APIWATCH_HOME" ] &&
+    APIWATCH_HOME="`(cd "$APIWATCH_HOME"; pwd)`"
+fi
+
+CLASSPATH='.'
+for jar in "${APIWATCH_HOME}"/lib/*.jar;
+do
+	CLASSPATH=$CLASSPATH:$jar
+done
+
+if [ -z "$JAVACMD" ] ; then
+  if [ -n "$JAVA_HOME"  ] ; then
+    if [ -x "$JAVA_HOME/jre/sh/java" ] ; then
+      # IBM's JDK on AIX uses strange locations for the executables
+      JAVACMD="$JAVA_HOME/jre/sh/java"
+    else
+      JAVACMD="$JAVA_HOME/bin/java"
+    fi
+  else
+    JAVACMD="`which java`"
+  fi
+fi
+
+if [ ! -x "$JAVACMD" ] ; then
+  echo "Error: JAVACMD is not defined correctly."
+  exit 1
+fi
+
+# For Cygwin, switch paths to Windows format before running java
+if $cygwin; then
+  [ -n "$APIWATCH_HOME" ] &&
+    APIWATCH_HOME=`cygpath --path --windows "$APIWATCH_HOME"`
+  [ -n "$CLASSPATH" ] &&
+    CLASSPATH=`cygpath --path --windows "$CLASSPATH"`
+fi
+
+LAUNCHER='org.apiwatch.cli.APIWatch'
+case `basename "$0"` in
+	apiscan)
+		LAUNCHER='org.apiwatch.cli.APIScan'
+		;;
+	apidiff)
+		LAUNCHER='org.apiwatch.cli.APIDiff'
+		;;
+	apiwatch)
+		LAUNCHER='org.apiwatch.cli.APIWatch'
+		;;
+esac
+
+exec "$JAVACMD" -classpath "${CLASSPATH}" $LAUNCHER "$@"

@@ -1,0 +1,26 @@
+<!--
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright (c) 2012, ABlogiX. All rights reserved.                   *
+ *                                                                     *
+ * This file is part of APIWATCH and published under the BSD license.  *
+ *                                                                     *
+ * See the "LICENSE" file for more information.                        *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ -->
+<html>
+<head>
+#parse( "/templates/parts/header.part" )
+</head>
+<body>
+#parse( "/templates/parts/navbar.part" )
+<div class="container center">
+    <div class="page-header">
+        <h1 class="error">$page_title</h1>
+    </div>
+	<p>Sorry but the resource you requested:</p>
+	<p><a href="$request_path">$request_path</a></p>
+	<p>cannot be found on the server.</p>
+</div>
+#parse( "/templates/parts/footer.part" )
+</body>
+</html>

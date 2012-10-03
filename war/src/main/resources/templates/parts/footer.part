@@ -1,0 +1,10 @@
+<!-- FOOTER -->
+<footer>
+  <div class="container">
+    <hr>
+    <span class="pull-left">
+      APIWatch <strong>$apiwatch_version</strong> &bull;
+      <a href="http://opensource.org/licenses/bsd-license.php"><em>&copy; 2010-2012</em></a>
+    </span>
+  </div>
+</footer><!-- /FOOTER -->
