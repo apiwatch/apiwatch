@@ -12,6 +12,7 @@
 #parse( "/templates/parts/header.part" )
 </head>
 <body>
+#set( $menu = "home" )
 #parse( "/templates/parts/navbar.part" )
 <div class="container">
     <div class="page-header">

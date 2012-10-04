@@ -105,7 +105,7 @@ public class JavaTreeWalker extends APITreeWalker {
             packageName = "";
         }
 
-        APIScope packageScope = new APIScope(packageName, language, _source(ast), Visibility.SCOPE,
+        APIScope packageScope = new APIScope(packageName, language, _source(ast), Visibility.PUBLIC,
                 scopeStack.peek(), null, null, null);
         ((APIScope) scopeStack.peek()).subScopes.add(packageScope);
 

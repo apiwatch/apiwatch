@@ -31,24 +31,51 @@ div#apitree span.modifiers {
 </style>
 </head>
 <body>
+#set( $menu = "version" )
 #parse( "/templates/parts/navbar.part" )
 <div class="container">
     <div class="page-header">
-        <h1>$page_title <small>Version</small></h1>
+        <h1>
+            $page_title 
+#if( $version.AliasOf )
+            <small>
+               Alias for 
+               <span class="label">
+                 <a href="../$version.AliasOf.Name/">$version.AliasOf.Name</a>
+               </span>
+            </small>
+#elseif ( $version.Aliases.size() > 0 )
+            <small>
+                Aliases
+#foreach( $alias in $version.Aliases )
+                <span class="label">
+                    <a href="../$alias.Name/">$alias.Name</a>
+                </span>
+            </small>
+#end
+#else
+            <small>Version</small>
+#end
+        </h1>
     </div>
-    <p><a href="../">Back to versions list</a></p>
-	<form id="search-form">
-	    <input id="search-txt" type="text" />
-	    <button type="submit" id="submit-btn">Search</button>
-	    <button id="reset-btn">Reset</button>
-	    <button id="collapse-btn">Collapse All</button>
-	    <select id="visibility-select">
-#for( $vis in $visibilities )
+    
+    
+	<form id="search-form" class="form-search form-inline middle">
+        <i class="icon-search"></i>
+	    <input id="search-txt" type="text" class="search-query" style="height: 26px;" >
+        <div class="btn-group">
+    	    <button type="submit" id="submit-btn" class="btn btn-small">Search</button>
+    	    <button id="reset-btn" class="btn btn-small">Reset</button>
+        </div>
+	    <button id="collapse-btn" class="btn btn-small btn-info">Collapse All</button>
+	    <select id="visibility-select" class="error span4 pull-right">
+#foreach( $vis in $visibilities )
 	        <option value="$vis"
 #if( $vis == $threshold ) 
                     selected="selected"
 #end
-                    >$vis</option>
+                    >Show elements with visibility $vis or more</option>
+#end
 	    </select>
 	</form>
     <div id="apitree"></div>

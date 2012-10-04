@@ -12,13 +12,12 @@
 #parse( "/templates/parts/header.part" )
 </head>
 <body>
+#set( $menu = "component" )
 #parse( "/templates/parts/navbar.part" )
 <div class="container">
     <div class="page-header">
         <h1>$component.Name <small>Component</small></h1>
     </div>
-    
-    <p><a href="../">Back to component list...</a></p>
     
     <table class="table table-bordered table-condensed table-hover table-striped">
         <thead>
@@ -52,7 +51,7 @@
         </tbody>
     </table>
     
-    <button id="show-diffs" class="btn btn-primary pull-right">View differences between selected A and B versions</button>
+    <button id="show-diffs" class="btn btn-info pull-right">View differences between selected A and B versions</button>
     
 </div>
 #parse( "/templates/parts/footer.part" )

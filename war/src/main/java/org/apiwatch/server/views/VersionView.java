@@ -9,17 +9,13 @@ package org.apiwatch.server.views;
 
 import java.io.IOException;
 import java.io.StringReader;
-import java.io.Writer;
 import java.sql.SQLException;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.Callable;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apiwatch.models.APIScope;
 import org.apiwatch.models.Visibility;
 import org.apiwatch.serialization.JSTreeSerializer;
 import org.apiwatch.serialization.Serializers;
@@ -33,11 +29,6 @@ import org.apiwatch.util.errors.SerializationError;
 import com.j256.ormlite.misc.TransactionManager;
 import com.j256.ormlite.stmt.PreparedQuery;
 import com.j256.ormlite.stmt.QueryBuilder;
-import com.thoughtworks.xstream.XStream;
-import com.thoughtworks.xstream.io.HierarchicalStreamWriter;
-import com.thoughtworks.xstream.io.json.JettisonMappedXmlDriver;
-import com.thoughtworks.xstream.io.json.JsonHierarchicalStreamDriver;
-import com.thoughtworks.xstream.io.json.JsonWriter;
 
 public class VersionView extends View {
 
@@ -83,12 +74,10 @@ public class VersionView extends View {
                 } else {
                     threshold = Visibility.SCOPE;
                 }
-                List<Map<String, Object>> jsTreeData = JSTreeSerializer.toJSTreeData(realVersion
-                        .getAPIScope(), threshold);
-                XStream xstream = new XStream(new JettisonMappedXmlDriver());
                 context.put("page_title", ver.toString());
                 context.put("version", ver);
-                context.put("jsTreeData", xstream.toXML(jsTreeData));
+                context.put("jsTreeData",
+                        JSTreeSerializer.toJSTreeData(realVersion.getAPIScope(), threshold));
                 context.put("threshold", threshold);
                 context.put("visibilities", Visibility.values());
                 renderToTemplate(context);

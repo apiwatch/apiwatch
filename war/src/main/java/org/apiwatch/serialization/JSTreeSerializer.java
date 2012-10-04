@@ -1,9 +1,5 @@
 package org.apiwatch.serialization;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.apache.commons.lang.StringUtils;
@@ -17,88 +13,82 @@ import org.apiwatch.models.Visibility;
 
 public class JSTreeSerializer {
 
-    public static final List<Map<String, Object>> toJSTreeData(APIScope rootScope) {
+    public static final String toJSTreeData(APIScope rootScope) {
         return toJSTreeData(rootScope, Visibility.SCOPE);
     }
 
-    public static final List<Map<String, Object>> toJSTreeData(APIScope rootScope,
-            Visibility threshold)
-    {
-        List<Map<String, Object>> data = new ArrayList<Map<String, Object>>();
+    public static final String toJSTreeData(APIScope rootScope, Visibility threshold) {
+        StringBuilder sb = new StringBuilder();
 
+        sb.append('[');
         if (rootScope.dependencies.size() > 0) {
-            data.add(dependencyData(rootScope.dependencies));
+            sb.append(dependencyData(rootScope.dependencies) + ",");
         }
         for (APIScope subScope : rootScope.subScopes) {
             if (subScope.visibility.compareTo(threshold) >= 0) {
-                data.add(scopeData(subScope, threshold));
+                sb.append(scopeData(subScope, threshold) + ",");
             }
         }
         for (Symbol symbol : rootScope.symbols) {
             if (symbol.visibility.compareTo(threshold) >= 0) {
-                data.add(symbolData(symbol, threshold));
+                sb.append(symbolData(symbol, threshold) + ",");
             }
         }
+        sb.append(']');
 
-        return data;
+        return sb.toString();
     }
 
-    private static Map<String, Object> scopeData(APIScope scope, Visibility threshold) {
-        Map<String, Object> attr = new HashMap<String, Object>();
-        attr.put("rel", "apiscope_" + scope.visibility);
-        attr.put("visibility", scope.visibility);
-
-        Map<String, Object> result = new HashMap<String, Object>();
-        result.put("data", scope.name());
-        result.put("attr", attr);
-
+    private static String scopeData(APIScope scope, Visibility threshold) {
+        StringBuilder result = new StringBuilder();
+        result.append('{');
+        result.append("data:\"" + scope.name() + "\",");
+        result.append("attr:");
+        result.append('{');
+        result.append("rel:\"apiscope_" + scope.visibility + "\",");
+        result.append("visibility:\"" + scope.visibility + "\",");
+        result.append("},");
         if (scope.dependencies.size() > 0 || scope.subScopes.size() > 0 || scope.symbols.size() > 0) {
-            List<Map<String, Object>> children = new ArrayList<Map<String, Object>>();
-
+            result.append("state:\"closed\",");
+            result.append("children:");
+            result.append('[');
             if (scope.dependencies.size() > 0) {
-                children.add(dependencyData(scope.dependencies));
+                result.append(dependencyData(scope.dependencies) + ",");
             }
             for (APIScope subScope : scope.subScopes) {
                 if (subScope.visibility.compareTo(threshold) >= 0) {
-                    children.add(scopeData(subScope, threshold));
+                    result.append(scopeData(subScope, threshold) + ",");
                 }
             }
             for (Symbol symbol : scope.symbols) {
                 if (symbol.visibility.compareTo(threshold) >= 0) {
-                    children.add(symbolData(symbol, threshold));
+                    result.append(symbolData(symbol, threshold) + ",");
                 }
             }
-            result.put("state", "closed");
-            result.put("children", children);
+            result.append("],");
         }
-
-        return result;
+        result.append('}');
+        return result.toString();
     }
 
-    private static Map<String, Object> dependencyData(Set<String> dependencies) {
-        Map<String, Object> attr = new HashMap<String, Object>();
-        attr.put("rel", "dependency");
-        Map<String, Object> result = new HashMap<String, Object>();
-        result.put("data", "dependencies");
-        result.put("attr", attr);
-
-        List<Map<String, Object>> children = new ArrayList<Map<String, Object>>();
-
+    private static String dependencyData(Set<String> dependencies) {
+        StringBuilder result = new StringBuilder();
+        result.append('{');
+        result.append("data:\"dependencies\",");
+        result.append("attr:{rel:\"dependency\"},");
+        result.append("state:\"closed\",");
+        result.append("children:[");
         for (String depName : dependencies) {
-            Map<String, Object> depAttr = new HashMap<String, Object>();
-            attr.put("rel", "dependency");
-            Map<String, Object> dep = new HashMap<String, Object>();
-            result.put("data", depName);
-            result.put("attr", depAttr);
-            children.add(dep);
+            result.append('{');
+            result.append("data:\"" + depName + "\",");
+            result.append("attr:{rel:\"dependency\"},");
+            result.append("},");
         }
-
-        result.put("state", "closed");
-        result.put("children", children);
-        return result;
+        result.append("],}");
+        return result.toString();
     }
 
-    private static Map<String, Object> symbolData(Symbol symbol, Visibility threshold) {
+    private static String symbolData(Symbol symbol, Visibility threshold) {
         if (symbol instanceof Type) {
             return typeData((Type) symbol, threshold);
         } else if (symbol instanceof Function) {
@@ -109,57 +99,63 @@ public class JSTreeSerializer {
         return null;
     }
 
-    private static Map<String, Object> typeData(Type type, Visibility threshold) {
-        Map<String, Object> attr = new HashMap<String, Object>();
-        attr.put("rel", type.getClass().getSimpleName().toLowerCase() + "_" + type.visibility);
-        attr.put("visibility", type.visibility);
-        attr.put("modifiers", StringUtils.join(type.modifiers, ", "));
+    private static String typeData(Type type, Visibility threshold) {
+        StringBuilder result = new StringBuilder();
+        result.append('{');
+        result.append("data:\"" + type.name() + "\",");
+        result.append("attr:{");
+        result.append("rel:\"" + type.getClass().getSimpleName().toLowerCase() + "_"
+                + type.visibility + "\",");
+        result.append("visibility:\"" + type.visibility + "\",");
+        result.append("modifiers:\"" + StringUtils.join(type.modifiers, ", ") + "\",");
         if (type instanceof ComplexType) {
-            attr.put("modifiers", StringUtils.join(((ComplexType) type).superTypes, ", "));
+            result.append("super_types:\""
+                    + StringUtils.join(((ComplexType) type).superTypes, ", ") + "\",");
         }
-        Map<String, Object> result = new HashMap<String, Object>();
-        result.put("data", type.name());
-        result.put("attr", attr);
-
+        result.append("},"); // end attr
         if (type instanceof ComplexType && ((ComplexType) type).symbols.size() > 0) {
-            List<Map<String, Object>> children = new ArrayList<Map<String, Object>>();
+            result.append("state:\"closed\",");
+            result.append("children:[");
             for (Symbol symbol : ((ComplexType) type).symbols) {
                 if (symbol.visibility.compareTo(threshold) >= 0) {
-                    children.add(symbolData(symbol, threshold));
+                    result.append(symbolData(symbol, threshold) + ",");
                 }
             }
-            result.put("state", "closed");
-            result.put("children", children);
+            result.append("],"); // end children
         }
-
-        return result;
+        result.append('}'); // end root
+        return result.toString();
     }
 
-    private static Map<String, Object> functionData(Function func, Visibility threshold) {
-        Map<String, Object> attr = new HashMap<String, Object>();
-        attr.put("rel", "function_" + func.visibility);
-        attr.put("visibility", func.visibility);
-        attr.put("modifiers", StringUtils.join(func.modifiers, ", "));
-        attr.put("return_type", func.returnType);
-        attr.put("exceptions", StringUtils.join(func.exceptions, ", "));
-        attr.put("has_varargs", func.hasVarArgs);
-        Map<String, Object> result = new HashMap<String, Object>();
-        result.put("data", func.signature());
-        result.put("attr", attr);
-        return result;
+    private static String functionData(Function func, Visibility threshold) {
+        StringBuilder result = new StringBuilder();
+        result.append('{');
+        result.append("data:\"" + func.signature() + "\",");
+        result.append("attr:{");
+        result.append("rel:\"function_" + func.visibility + "\",");
+        result.append("visibility:\"" + func.visibility + "\",");
+        result.append("modifiers:\"" + StringUtils.join(func.modifiers, ", ") + "\",");
+        result.append("exceptions:\"" + StringUtils.join(func.exceptions, ", ") + "\",");
+        result.append("return_type:\"" + func.returnType + "\",");
+        result.append("has_varargs:" + func.hasVarArgs + ",");
+        result.append("},"); // end attr
+        result.append('}'); // end root
+        return result.toString();
     }
 
-    private static Map<String, Object> variableData(Variable var, Visibility threshold) {
-        Map<String, Object> attr = new HashMap<String, Object>();
-        attr.put("rel", "variable_" + var.visibility);
-        attr.put("visibility", var.visibility);
-        attr.put("modifiers", StringUtils.join(var.modifiers, ", "));
-        attr.put("var_type", var.type);
-        attr.put("constraints", var.constraints);
-        Map<String, Object> result = new HashMap<String, Object>();
-        result.put("data", var.name);
-        result.put("attr", attr);
-        return result;
+    private static String variableData(Variable var, Visibility threshold) {
+        StringBuilder result = new StringBuilder();
+        result.append('{');
+        result.append("data:\"" + var.name + "\",");
+        result.append("attr:{");
+        result.append("rel:\"variable_" + var.visibility + "\",");
+        result.append("visibility:\"" + var.visibility + "\",");
+        result.append("modifiers:\"" + StringUtils.join(var.modifiers, ", ") + "\",");
+        result.append("type:\"" + var.type + "\",");
+        result.append("data:\"" + var.constraints + "\",");
+        result.append("},"); // end attr
+        result.append('}'); // end root
+        return result.toString();
     }
 
 }
