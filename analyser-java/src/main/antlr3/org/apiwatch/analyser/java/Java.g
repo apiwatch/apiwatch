@@ -1,5 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * Copyright (c) 2012, ABlogiX. All rights reserved.                   *
+ * Copyright (c) 2012, Robin Jarry, ABlogiX. All rights reserved.      *
  *                                                                     *
  * This file is part of APIWATCH and published under the BSD license.  *
  *                                                                     *
@@ -83,7 +83,7 @@ tokens {
 
 @header {
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * Copyright (c) 2012, ABlogiX. All rights reserved.                   *
+ * Copyright (c) 2012, Robin Jarry, ABlogiX. All rights reserved.      *
  *                                                                     *
  * This file is part of APIWATCH and published under the BSD license.  *
  *                                                                     *
@@ -96,7 +96,7 @@ import org.apiwatch.util.antlr.IterableTree;
 
 @lexer::header {
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * Copyright (c) 2012, ABlogiX. All rights reserved.                   *
+ * Copyright (c) 2012, Robin Jarry, ABlogiX. All rights reserved.      *
  *                                                                     *
  * This file is part of APIWATCH and published under the BSD license.  *
  *                                                                     *
