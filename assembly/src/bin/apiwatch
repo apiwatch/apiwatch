@@ -8,7 +8,7 @@
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
 
 # ---------------------------------------------------------------------
-# APIWATCH Start Up Batch script
+# APIWATCH Start Up Bash script
 # ---------------------------------------------------------------------
 
 # OS specific support.  $var _must_ be set to either true or false.

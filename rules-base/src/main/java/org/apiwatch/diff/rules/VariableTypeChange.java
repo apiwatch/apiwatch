@@ -13,14 +13,21 @@ import org.apiwatch.models.APIStabilityViolation;
 import org.apiwatch.models.ChangeType;
 import org.apiwatch.models.Severity;
 import org.apiwatch.models.Variable;
-import org.apiwatch.models.Visibility;
 
-public class VariableTypeChange implements APIStabilityRule {
+public class VariableTypeChange extends RuleBase implements APIStabilityRule {
 
-    static String ID = "TYP001";
-    static String NAME = "Variable Type Change";
-    static String MESSAGE = "Changed type of %s variable '%s' (%s -> %s)";
+    static final String ID = "TYP001";
+    static final String NAME = "Variable Type Change";
+    static final String MESSAGE = "Changed type of %s variable '%s' (%s -> %s)";
 
+    public VariableTypeChange() {
+        super();
+        privateSeverity = Severity.INFO;
+        scopeSeverity = Severity.CRITICAL;
+        protectedSeverity = Severity.CRITICAL;
+        publicSeverity = Severity.BLOCKER;
+    }
+    
     @Override
     public String id() {
         return ID;
@@ -52,10 +59,19 @@ public class VariableTypeChange implements APIStabilityRule {
                 .format(MESSAGE, diff.elementB.visibility, diff.name(), typeA, typeB);
         
         Severity severity;
-        if (diff.elementB.visibility == Visibility.PRIVATE) {
-            severity = Severity.MINOR;
-        } else {
-            severity = Severity.BLOCKER;
+        switch (diff.visibility()) {
+        case PRIVATE:
+            severity = privateSeverity;
+            break;
+        case SCOPE:
+            severity = scopeSeverity;
+            break;
+        case PROTECTED:
+            severity = protectedSeverity;
+            break;
+        case PUBLIC:
+        default:
+            severity = publicSeverity;
         }
 
         return new APIStabilityViolation(diff, this, severity, message);

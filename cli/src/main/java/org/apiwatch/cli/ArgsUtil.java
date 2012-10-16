@@ -19,6 +19,7 @@ import java.io.OutputStreamWriter;
 import java.io.Reader;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.regex.Pattern;
@@ -44,6 +45,9 @@ import org.apiwatch.models.APIScope;
 import org.apiwatch.models.Severity;
 import org.apiwatch.serialization.Serializers;
 import org.apiwatch.util.errors.SerializationError;
+import org.ini4j.Ini;
+import org.ini4j.InvalidFileFormatException;
+import org.ini4j.Profile.Section;
 
 /* package */class ArgsUtil {
 
@@ -75,27 +79,77 @@ import org.apiwatch.util.errors.SerializationError;
 
     }
 
-    /* package */static class FileArgument implements ArgumentType<File> {
+    /* package */static class IniFileArgument implements
+            ArgumentType<Map<String, Map<String, String>>>
+    {
 
         @Override
-        public File convert(ArgumentParser parser, Argument arg, String value)
-                throws ArgumentParserException
+        public Map<String, Map<String, String>> convert(ArgumentParser parser, Argument arg,
+                String value) throws ArgumentParserException
         {
             File file = new File(value);
             try {
                 if (file.isFile()) {
-                    return file;
+                    // first we read the default config
+                    InputStream ini = this.getClass().getResourceAsStream("/rules-config.ini");
+                    Map<String, Map<String, String>> iniSections = IniFile.read(ini);
+
+                    // then override it with user settings
+                    iniSections.putAll(IniFile.read(file));
+
+                    return iniSections;
                 } else {
                     throw new ArgumentParserException("File '" + file + "' does not exist.",
                             parser, arg);
                 }
             } catch (SecurityException e) {
                 throw new ArgumentParserException(e.getMessage(), e, parser, arg);
+            } catch (InvalidFileFormatException e) {
+                throw new ArgumentParserException(e.getMessage(), e, parser, arg);
+            } catch (IOException e) {
+                throw new ArgumentParserException(e.getMessage(), e, parser, arg);
             }
-
+        }
+    }
+    
+    /* package */static class IniFile {
+        static Map<String, Map<String, String>> read(File file) throws InvalidFileFormatException,
+                IOException
+        {
+            Ini ini = new Ini();
+            ini.load(file);
+            return read(ini);
         }
 
+        static Map<String, Map<String, String>> read(InputStream is)
+                throws InvalidFileFormatException, IOException
+        {
+            Ini ini = new Ini();
+            ini.load(is);
+            return read(ini);
+        }
+
+        static Map<String, Map<String, String>> read(Reader r)
+                throws InvalidFileFormatException, IOException
+        {
+            Ini ini = new Ini();
+            ini.load(r);
+            return read(ini);
+        }
+
+        private static Map<String, Map<String, String>> read(Ini ini) {
+            Map<String, Map<String, String>> iniSections = new HashMap<String, Map<String, String>>();
+            for (Map.Entry<String, Section> section : ini.entrySet()) {
+                Map<String, String> sectionValues = new HashMap<String, String>();
+                for (Map.Entry<String, String> val : section.getValue().entrySet()) {
+                    sectionValues.put(val.getKey(), val.getValue());
+                }
+                iniSections.put(section.getKey(), sectionValues);
+            }
+            return iniSections;
+        }
     }
+    
 
     /* package */static class SeverityArgument implements ArgumentType<Severity> {
 
@@ -236,7 +290,7 @@ import org.apiwatch.util.errors.SerializationError;
     }
 
     /* package */static class ContentType {
-        
+
         String type;
         String charset;
 

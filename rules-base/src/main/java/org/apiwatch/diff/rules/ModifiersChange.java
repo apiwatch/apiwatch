@@ -13,14 +13,21 @@ import org.apiwatch.models.APIStabilityViolation;
 import org.apiwatch.models.ChangeType;
 import org.apiwatch.models.Severity;
 import org.apiwatch.models.Symbol;
-import org.apiwatch.models.Visibility;
 
-public class ModifiersChange implements APIStabilityRule {
+public class ModifiersChange extends RuleBase  implements APIStabilityRule {
 
-    static String ID = "VIS002";
-    static String NAME = "Modifiers Changed";
-    static String MESSAGE = "Changed modifiers of %s %s '%s' (%s -> %s)";
+    static final String ID = "MOD001";
+    static final String NAME = "Modifiers Changed";
+    static final String MESSAGE = "Changed modifiers of %s %s '%s' (%s -> %s)";
 
+    public ModifiersChange() {
+        super();
+        privateSeverity = Severity.INFO;
+        scopeSeverity = Severity.MAJOR;
+        protectedSeverity = Severity.MAJOR;
+        publicSeverity = Severity.MAJOR;
+    }
+    
     @Override
     public String id() {
         return ID;
@@ -47,10 +54,19 @@ public class ModifiersChange implements APIStabilityRule {
         String message = String.format(MESSAGE, diff.visibility(), diff.element().getClass()
                 .getSimpleName(), diff.element().name(), diff.valueA, diff.valueB);
         Severity severity;
-        if (diff.visibility() == Visibility.PRIVATE) {
-            severity = Severity.INFO;
-        } else {
-            severity = Severity.MAJOR;
+        switch (diff.visibility()) {
+        case PRIVATE:
+            severity = privateSeverity;
+            break;
+        case SCOPE:
+            severity = scopeSeverity;
+            break;
+        case PROTECTED:
+            severity = protectedSeverity;
+            break;
+        case PUBLIC:
+        default:
+            severity = publicSeverity;
         }
         return new APIStabilityViolation(diff, this, severity, message);
     }

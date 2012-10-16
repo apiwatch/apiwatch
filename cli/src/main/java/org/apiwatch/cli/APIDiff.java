@@ -9,6 +9,7 @@ package org.apiwatch.cli;
 
 import java.io.OutputStreamWriter;
 import java.util.List;
+import java.util.Map;
 
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentGroup;
@@ -42,6 +43,13 @@ public class APIDiff {
             Namespace args = parseArgs(argv);
             
             Logger log = Logger.getLogger(APIDiff.class.getName());
+            
+            @SuppressWarnings("unchecked")
+            Map<String, Map<String, String>> rulesConfig = (Map<String, Map<String, String>>) args
+                    .get("rules_config");
+            if (rulesConfig != null) {
+                RulesFinder.configureRules(rulesConfig);
+            }
             
             log.trace("Deserializing API data...");
             APIScope scopeA = ArgsUtil.getAPIData(args.getString("component_a"),
@@ -117,16 +125,10 @@ public class APIDiff {
                 .dest("format")
                 .setDefault("text")
                 .choices(Serializers.availableFormats(APIStabilityViolation.class));
-        outputGroup.addArgument("-r", "--only-rules")
-                .help("Only consider these API stability rules")
-                .dest("only_rules")
-                .nargs("+")
-                .metavar("RULE_ID");
-        outputGroup.addArgument("-R", "--ignored-rules")
-                .help("Ignore these API stability rules")
-                .dest("ignored_rules")
-                .nargs("+")
-                .metavar("RULE_ID");
+        outputGroup.addArgument("-r", "--rules-config")
+                .help("API stability rules configuration file")
+                .dest("rules_config")
+                .type(new ArgsUtil.IniFileArgument());
         outputGroup.addArgument("-s", "--severity-threshold")
                 .help("Exclude all API stablity violations below this severity level")
                 .dest("severity_threshold")

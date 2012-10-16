@@ -8,6 +8,7 @@
 package org.apiwatch.diff.rules;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import org.apiwatch.models.APIDifference;
@@ -19,9 +20,19 @@ import org.apiwatch.models.Severity;
 
 public class DependenciesChange implements APIStabilityRule {
 
-    static String ID = "DEP001";
-    static String NAME = "Dependencies Changed";
-    static String MESSAGE = "Changed dependencies in scope %s ADDED %s REMOVED %s";
+    static final String ID = "DEP001";
+    static final String NAME = "Dependencies Change";
+    static final String MESSAGE = "Changed dependencies in scope %s ADDED %s REMOVED %s";
+
+    private Severity addPrivateSeverity = Severity.INFO;
+    private Severity addProtectedSeverity = Severity.MAJOR;
+    private Severity addScopeSeverity = Severity.MAJOR;
+    private Severity addPublicSeverity = Severity.MAJOR;
+
+    private Severity remPrivateSeverity = Severity.INFO;
+    private Severity remProtectedSeverity = Severity.INFO;
+    private Severity remScopeSeverity = Severity.INFO;
+    private Severity remPublicSeverity = Severity.INFO;
 
     @Override
     public String id() {
@@ -36,6 +47,42 @@ public class DependenciesChange implements APIStabilityRule {
     @Override
     public String description() {
         return MESSAGE;
+    }
+
+    @Override
+    public void configure(Map<String, String> properties) throws IllegalArgumentException {
+        String addPrivateSeverity = properties.get("addPrivateSeverity");
+        if (addPrivateSeverity != null) {
+            this.addPrivateSeverity = Severity.valueOf(addPrivateSeverity);
+        }
+        String addProtectedSeverity = properties.get("addProtectedSeverity");
+        if (addProtectedSeverity != null) {
+            this.addProtectedSeverity = Severity.valueOf(addProtectedSeverity);
+        }
+        String addScopeSeverity = properties.get("addScopeSeverity");
+        if (addScopeSeverity != null) {
+            this.addScopeSeverity = Severity.valueOf(addScopeSeverity);
+        }
+        String addPublicSeverity = properties.get("addPublicSeverity");
+        if (addPublicSeverity != null) {
+            this.addPublicSeverity = Severity.valueOf(addPublicSeverity);
+        }
+        String remPrivateSeverity = properties.get("remPrivateSeverity");
+        if (remPrivateSeverity != null) {
+            this.remPrivateSeverity = Severity.valueOf(remPrivateSeverity);
+        }
+        String remProtectedSeverity = properties.get("remProtectedSeverity");
+        if (remProtectedSeverity != null) {
+            this.remProtectedSeverity = Severity.valueOf(remProtectedSeverity);
+        }
+        String remScopeSeverity = properties.get("remScopeSeverity");
+        if (remScopeSeverity != null) {
+            this.remScopeSeverity = Severity.valueOf(remScopeSeverity);
+        }
+        String remPublicSeverity = properties.get("remPublicSeverity");
+        if (remPublicSeverity != null) {
+            this.remPublicSeverity = Severity.valueOf(remPublicSeverity);
+        }
     }
 
     @Override
@@ -58,9 +105,37 @@ public class DependenciesChange implements APIStabilityRule {
 
         Severity severity;
         if (added.size() > 0) {
-            severity = Severity.MAJOR;
+            switch (diff.element().visibility) {
+            case PRIVATE:
+                severity = addPrivateSeverity;
+                break;
+            case PROTECTED:
+                severity = addProtectedSeverity;
+                break;
+            case SCOPE:
+                severity = addScopeSeverity;
+                break;
+            case PUBLIC:
+            default:
+                severity = addPublicSeverity;
+                break;
+            }
         } else {
-            severity = Severity.INFO;
+            switch (diff.element().visibility) {
+            case PRIVATE:
+                severity = remPrivateSeverity;
+                break;
+            case PROTECTED:
+                severity = remProtectedSeverity;
+                break;
+            case SCOPE:
+                severity = remScopeSeverity;
+                break;
+            case PUBLIC:
+            default:
+                severity = remPublicSeverity;
+                break;
+            }
         }
         String message = String.format(MESSAGE, diff.name(), added, removed);
 

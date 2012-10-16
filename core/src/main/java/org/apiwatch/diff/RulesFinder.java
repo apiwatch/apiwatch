@@ -36,4 +36,30 @@ public class RulesFinder {
         return RULES;
     }
     
+    public static void configureRules(Map<String, Map<String, String>> rulesProperties) {
+        // to discover rules first, if necessary
+        rules();
+        
+        for (Map.Entry<String, Map<String, String>> ruleConf : rulesProperties.entrySet()) {
+            
+            String ruleId = ruleConf.getKey();
+            Map<String, String> ruleProps = ruleConf.getValue();
+            
+            if (ruleProps != null) {
+                if ("false".equals(ruleProps.get("enabled"))) {
+                    RULES.remove(ruleId);
+                } else {
+                    APIStabilityRule rule = RULES.get(ruleId);
+                    if (rule != null) {
+                        try {
+                            rule.configure(ruleProps);
+                        } catch (IllegalArgumentException e) {
+                            LOGGER.error("Error while configuring rule " + ruleId, e);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
 }

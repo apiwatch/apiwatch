@@ -7,13 +7,20 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 package org.apiwatch.models;
 
+import java.util.Map;
+
 public interface APIStabilityRule {
-    
+
     String id();
+
     String name();
+
     String description();
-    
+
+    void configure(Map<String, String> properties) throws IllegalArgumentException;
+
     boolean isApplicable(APIDifference diff);
+
     APIStabilityViolation evaluate(APIDifference diff);
-    
+
 }

@@ -7,21 +7,26 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 package org.apiwatch.diff.rules;
 
-import java.util.Set;
-
 import org.apiwatch.models.APIDifference;
 import org.apiwatch.models.APIStabilityRule;
 import org.apiwatch.models.APIStabilityViolation;
 import org.apiwatch.models.ChangeType;
 import org.apiwatch.models.ComplexType;
 import org.apiwatch.models.Severity;
-import org.apiwatch.models.Visibility;
 
-public class SuperTypesChange implements APIStabilityRule {
+public class SuperTypesChange extends RuleBase implements APIStabilityRule {
 
-    static String ID = "TYP003";
-    static String NAME = "Super Type Change";
-    static String MESSAGE = "Changed super type of %s type '%s' (%s -> %s)";
+    static final String ID = "TYP003";
+    static final String NAME = "Super Types Change";
+    static final String MESSAGE = "Changed super types of %s type '%s' (%s -> %s)";
+
+    public SuperTypesChange() {
+        super();
+        privateSeverity = Severity.INFO;
+        scopeSeverity = Severity.MAJOR;
+        protectedSeverity = Severity.MAJOR;
+        publicSeverity = Severity.CRITICAL;
+    }
 
     @Override
     public String id() {
@@ -44,24 +49,27 @@ public class SuperTypesChange implements APIStabilityRule {
                 && "superTypes".equals(diff.attribute);
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public APIStabilityViolation evaluate(APIDifference diff) {
-        Set<String> superTypesA = (Set<String>) diff.valueA;
-        Set<String> superTypesB = (Set<String>) diff.valueB;
+        String message = String.format(MESSAGE, diff.visibility(), diff.name(), diff.valueA,
+                diff.valueB);
 
-        if (!superTypesB.containsAll(superTypesA)) {
-            String message = String.format(MESSAGE, diff.visibility(), diff.name(),
-                    superTypesA, superTypesB);
-            Severity severity;
-            if (diff.visibility() == Visibility.PRIVATE) {
-                severity = Severity.INFO;
-            } else {
-                severity = Severity.MAJOR;
-            }
-            return new APIStabilityViolation(diff, this, severity, message);
-        } else {
-            return null;
+        Severity severity;
+        switch (diff.visibility()) {
+        case PRIVATE:
+            severity = privateSeverity;
+            break;
+        case SCOPE:
+            severity = scopeSeverity;
+            break;
+        case PROTECTED:
+            severity = protectedSeverity;
+            break;
+        case PUBLIC:
+        default:
+            severity = publicSeverity;
         }
+
+        return new APIStabilityViolation(diff, this, severity, message);
     }
 }

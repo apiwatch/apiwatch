@@ -7,6 +7,8 @@
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 package org.apiwatch.diff.rules;
 
+import java.util.Map;
+
 import org.apiwatch.models.APIDifference;
 import org.apiwatch.models.APIStabilityRule;
 import org.apiwatch.models.APIStabilityViolation;
@@ -16,10 +18,12 @@ import org.apiwatch.models.Visibility;
 
 public class ReducedVisibility implements APIStabilityRule {
 
-    static String ID = "VIS001";
-    static String NAME = "Reduced Visibility";
-    static String MESSAGE = "Reduced visibility of %s '%s' (%s -> %s)";
-
+    static final String ID = "VIS001";
+    static final String NAME = "Reduced Visibility";
+    static final String MESSAGE = "Reduced visibility of %s '%s' (%s -> %s)";
+    
+    private Severity severity = Severity.CRITICAL;
+    
     @Override
     public String id() {
         return ID;
@@ -34,6 +38,14 @@ public class ReducedVisibility implements APIStabilityRule {
     public String description() {
         return MESSAGE;
     }
+    
+    @Override
+    public void configure(Map<String, String> properties) throws IllegalArgumentException {
+        String severity = properties.get("severity");
+        if (severity != null) {
+            this.severity = Severity.valueOf(severity);
+        }
+    }
 
     @Override
     public boolean isApplicable(APIDifference diff) {
@@ -47,7 +59,7 @@ public class ReducedVisibility implements APIStabilityRule {
         if (visibilityA.compareTo(visibilityB) > 0) {
             String message = String.format(MESSAGE, diff.element().getClass().getSimpleName(), diff
                     .element().name(), visibilityA, visibilityB);
-            return new APIStabilityViolation(diff, this, Severity.CRITICAL, message);
+            return new APIStabilityViolation(diff, this, severity, message);
         } else {
             return null;
         }

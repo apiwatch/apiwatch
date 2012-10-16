@@ -55,7 +55,7 @@ goto error
 :checkJavaHome
 if exist "%JAVA_HOME%\bin\java.exe" (
     set JAVACMD="%JAVA_HOME%\bin\java.exe"
-    goto chkMHome
+    goto checkApiwatchHome
 )
 
 echo.
@@ -81,12 +81,12 @@ goto error
 
 
 
-:chkMHome
+:checkApiwatchHome
 if not "%APIWATCH_HOME%"=="" goto validateHome
 
 if "%OS%"=="Windows_NT" SET "APIWATCH_HOME=%~dp0.."
 if "%OS%"=="WINNT" SET "APIWATCH_HOME=%~dp0.."
-if not "%APIWATCH_HOME%"=="" goto valMHome
+if not "%APIWATCH_HOME%"=="" goto validateHome
 
 echo.
 echo ERROR: APIWATCH_HOME not found in your environment.
@@ -98,11 +98,11 @@ goto error
 :validateHome
 
 :stripHome
-if not "_%APIWATCH_HOME:~-1%"=="_\" goto checkMBat
+if not "_%APIWATCH_HOME:~-1%"=="_\" goto checkApiwatchCmd
 set "APIWATCH_HOME=%APIWATCH_HOME:~0,-1%"
 goto stripHome
 
-:checkMBat
+:checkApiwatchCmd
 if exist "%APIWATCH_HOME%\bin\%~n0.cmd" goto init
 
 echo.
@@ -112,34 +112,34 @@ echo Please set the APIWATCH_HOME variable in your environment to match the
 echo location of the Maven installation
 echo.
 goto error
-@REM ==== END VALIDATION ====
+:: ==== END VALIDATION ====
 
 :init
-@REM Decide how to startup depending on the version of windows
+:: Decide how to startup depending on the version of windows
 
-@REM -- Windows NT with Novell Login
+:: -- Windows NT with Novell Login
 if "%OS%"=="WINNT" goto WinNTNovell
 
-@REM -- Win98ME
+:: -- Win98ME
 if NOT "%OS%"=="Windows_NT" goto Win9xArg
 
 :WinNTNovell
 
-@REM -- 4NT shell
+:: -- 4NT shell
 if "%@eval[2+2]" == "4" goto 4NTArgs
 
-@REM -- Regular WinNT shell
+:: -- Regular WinNT shell
 set APIWATCH_CMD_LINE_ARGS=%*
 goto endInit
 
-@REM The 4NT Shell from jp software
+:: The 4NT Shell from jp software
 :4NTArgs
 set APIWATCH_CMD_LINE_ARGS=%$
 goto endInit
 
 :Win9xArg
-@REM Slurp the command line arguments.  This loop allows for an unlimited number
-@REM of agruments (up to the command line limit, anyway).
+:: Slurp the command line arguments.  This loop allows for an unlimited number
+:: of agruments (up to the command line limit, anyway).
 set APIWATCH_CMD_LINE_ARGS=
 :Win9xApp
 if %1a==a goto endInit
@@ -147,27 +147,50 @@ set APIWATCH_CMD_LINE_ARGS=%APIWATCH_CMD_LINE_ARGS% %1
 shift
 goto Win9xApp
 
-@REM Reaching here means variables are defined and arguments have been captured
+:: Reaching here means variables are defined and arguments have been captured
 :endInit
 SET APIWATCH_JAVA_EXE="%JAVA_HOME%\bin\java.exe"
 
-@REM -- 4NT shell
+:: -- 4NT shell
 if "%@eval[2+2]" == "4" goto 4NTCWJars
 
-@REM -- Regular WinNT shell
-for %%i in ("%APIWATCH_HOME%"\boot\plexus-classworlds-*) do set CLASSWORLDS_JAR="%%i"
-goto runm2
+REM needed to overcome weird loop behavior
+REM in conjunction with variable expansion
+SETLOCAL enabledelayedexpansion
 
-@REM The 4NT Shell from jp software
+set CLASSPATH=.
+
+:: -- Regular WinNT shell
+for %%i in ("%APIWATCH_HOME%"\lib\*) do (
+    set CLASSPATH=!CLASSPATH!;%%i%
+)
+goto runApiwatch
+
+:: The 4NT Shell from jp software
 :4NTCWJars
-for %%i in ("%APIWATCH_HOME%\boot\plexus-classworlds-*") do set CLASSWORLDS_JAR="%%i"
-goto runm2
+for %%i in ("%APIWATCH_HOME%\lib\*") do (
+    set CLASSPATH=!CLASSPATH!;%%i%
+)
+goto runApiwatch
 
-@REM Start APIWATCH2
-:runm2
-set CLASSWORLDS_LAUNCHER=org.codehaus.plexus.classworlds.launcher.Launcher
-%APIWATCH_JAVA_EXE% %APIWATCH_OPTS% -classpath %CLASSWORLDS_JAR% "-Dclassworlds.conf=%APIWATCH_HOME%\bin\m2.conf" "-Dmaven.home=%APIWATCH_HOME%" %CLASSWORLDS_LAUNCHER% %APIWATCH_CMD_LINE_ARGS%
-if ERRORLEVEL goto error
+
+
+:runApiwatch
+set MAINCLASS=org.apiwatch.cli.APIWatch
+:: Choose main class
+if "%0" == "apiscan.cmd" (
+    set MAINCLASS=org.apiwatch.cli.APIScan
+)
+if "%0" == "apidiff.cmd" (
+    set MAINCLASS=org.apiwatch.cli.APIDiff
+)
+if "%0" == "apiwatch.cmd" (
+    set MAINCLASS=org.apiwatch.cli.APIWatch
+)
+
+:: Start APIWATCH2
+%APIWATCH_JAVA_EXE% %APIWATCH_OPTS% -classpath "%CLASSPATH%" %MAINCLASS% %APIWATCH_CMD_LINE_ARGS%
+if NOT ERRORLEVEL 0 goto error
 goto end
 
 :error
@@ -176,12 +199,12 @@ if "%OS%"=="WINNT" @endlocal
 set ERROR_CODE=1
 
 :end
-@REM set local scope for the variables with windows NT shell
+:: set local scope for the variables with windows NT shell
 if "%OS%"=="Windows_NT" goto endNT
 if "%OS%"=="WINNT" goto endNT
 
-@REM For old DOS remove the set variables from ENV - we assume they were not set
-@REM before we started - at least we don't leave any baggage around
+:: For old DOS remove the set variables from ENV - we assume they were not set
+:: before we started - at least we don't leave any baggage around
 set APIWATCH_JAVA_EXE=
 set APIWATCH_CMD_LINE_ARGS=
 goto postExec

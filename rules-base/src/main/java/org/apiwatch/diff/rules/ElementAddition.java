@@ -1,10 +1,3 @@
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * Copyright (c) 2012, Robin Jarry, ABlogiX. All rights reserved.      *
- *                                                                     *
- * This file is part of APIWATCH and published under the BSD license.  *
- *                                                                     *
- * See the "LICENSE" file for more information.                        *
- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 package org.apiwatch.diff.rules;
 
 import org.apiwatch.models.APIDifference;
@@ -14,18 +7,18 @@ import org.apiwatch.models.APIStabilityViolation;
 import org.apiwatch.models.ChangeType;
 import org.apiwatch.models.Severity;
 
-public class ElementRemoval extends RuleBase implements APIStabilityRule {
+public class ElementAddition extends RuleBase implements APIStabilityRule {
 
-    static final String ID = "REM001";
-    static final String NAME = "Element Removal";
-    static final String MESSAGE = "Removed %s %s";
+    static final String ID = "ADD001";
+    static final String NAME = "Element Addition";
+    static final String MESSAGE = "Added %s %s";
 
-    public ElementRemoval() {
+    public ElementAddition() {
         super();
-        privateSeverity = Severity.INFO;
-        scopeSeverity = Severity.CRITICAL;
-        protectedSeverity = Severity.CRITICAL;
-        publicSeverity = Severity.BLOCKER;
+        this.privateSeverity = Severity.INFO;
+        this.scopeSeverity = Severity.INFO;
+        this.protectedSeverity = Severity.INFO;
+        this.publicSeverity = Severity.INFO;
     }
 
     @Override
@@ -45,7 +38,7 @@ public class ElementRemoval extends RuleBase implements APIStabilityRule {
 
     @Override
     public boolean isApplicable(APIDifference diff) {
-        return diff.changeType == ChangeType.REMOVED;
+        return diff.changeType == ChangeType.ADDED;
     }
 
     @Override

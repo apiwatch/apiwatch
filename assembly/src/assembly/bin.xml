@@ -46,6 +46,12 @@
     </fileSets>
     <files>
         <file>
+            <source>../cli/src/main/resources/rules-config.ini</source>
+            <outputDirectory>conf</outputDirectory>
+            <lineEnding>dos</lineEnding>
+            <fileMode>0644</fileMode>
+        </file>
+        <file>
             <source>src/bin/apiwatch.cmd</source>
             <outputDirectory>bin</outputDirectory>
             <lineEnding>dos</lineEnding>

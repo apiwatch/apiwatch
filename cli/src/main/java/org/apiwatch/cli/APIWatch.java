@@ -9,6 +9,7 @@ package org.apiwatch.cli;
 
 import java.io.OutputStreamWriter;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import net.sourceforge.argparse4j.ArgumentParsers;
@@ -35,34 +36,40 @@ import org.apiwatch.util.Logging;
 
 public class APIWatch {
 
-    public static final String DESCRIPTION = ArgsUtil.VERSION_NAME + "\n\n" +
-            "Analyse source code and extract API information from it. The API data will then " +
-            "be compared to a reference (from a file or from an APIWATCH server instance).\n\n" + 
-            "The API differences will be be processed through stability rules to check for " +
-            "API stability violations.";
-    private static final String EPILOG = "You may have to add -- before the positional arguments " +
-            "to separate them from the -i and -x options."; 
-    
+    public static final String DESCRIPTION = ArgsUtil.VERSION_NAME + "\n\n"
+            + "Analyse source code and extract API information from it. The API data will then "
+            + "be compared to a reference (from a file or from an APIWATCH server instance).\n\n"
+            + "The API differences will be be processed through stability rules to check for "
+            + "API stability violations.";
+    private static final String EPILOG = "You may have to add -- before the positional arguments "
+            + "to separate them from the -i and -x options.";
+
     /**
      * @param args
      */
     public static void main(String[] argv) {
         try {
             Namespace args = parseArgs(argv);
-            
+
             Logger log = Logger.getLogger(APIWatch.class.getName());
+
+            @SuppressWarnings("unchecked")
+            Map<String, Map<String, String>> rulesConfig = (Map<String, Map<String, String>>) args
+                    .get("rules_config");
+            if (rulesConfig != null) {
+                RulesFinder.configureRules(rulesConfig);
+            }
 
             APIScope referenceScope = ArgsUtil.getAPIData(args.getString("reference_api_data"),
                     args.getString("encoding"), args.getString("username"),
                     args.getString("password"));
-            
-            
+
             DirectoryWalker walker = new DirectoryWalker(args.<String> getList("excludes"),
                     args.<String> getList("includes"));
-            
-            Set<String> files = walker.walk(args.<String>getList("input_paths"));
+
+            Set<String> files = walker.walk(args.<String> getList("input_paths"));
             APIScope newScope = Analyser.analyse(files, args.getAttrs());
-            
+
             log.trace("Calculation of differences...");
             List<APIDifference> diffs = DifferencesCalculator.getDiffs(referenceScope, newScope);
 
@@ -77,7 +84,7 @@ public class APIWatch {
             Serializers.dumpViolations(violations, writer, args.getString("format"));
             writer.flush();
             writer.close();
-            
+
             log.info(violations.size() + " violations.");
         } catch (HttpException e) {
             Logger.getLogger(APIWatch.class.getName()).error(e.getMessage());
@@ -90,76 +97,49 @@ public class APIWatch {
 
     private static Namespace parseArgs(String[] argv) {
         Logging.configureLogging();
-        
+
         String prog = APIWatch.class.getSimpleName().toLowerCase();
-        
-        ArgumentParser cli = ArgumentParsers.newArgumentParser(prog)
-                .description(DESCRIPTION)
-                .epilog(EPILOG)
-                .version(ArgsUtil.VERSION);
-        
+
+        ArgumentParser cli = ArgumentParsers.newArgumentParser(prog).description(DESCRIPTION)
+                .epilog(EPILOG).version(ArgsUtil.VERSION);
+
         cli.addArgument("reference_api_data")
                 .help("Reference API data to use for API violations detection (file or URL)")
                 .metavar("REFERENCE");
-        cli.addArgument("input_paths")
-                .help("Input file/directory to be analysed")
-                .metavar("FILE_OR_DIR")
-                .nargs("+");
+        cli.addArgument("input_paths").help("Input file/directory to be analysed")
+                .metavar("FILE_OR_DIR").nargs("+");
 
         ArgumentGroup inputGroup = cli.addArgumentGroup("Input options");
-        inputGroup.addArgument("-e", "--encoding")
-                .help("Source files encoding (default: UTF-8)")
-                .dest("encoding")
-                .setDefault("UTF-8");
-        inputGroup.addArgument("-x", "--exclude")
-                .help("Exclude from analysis")
-                .dest("excludes")
-                .metavar("PATTERN")
-                .nargs("+");
-        inputGroup.addArgument("-i", "--include")
-                .help("Only include in analysis")
-                .dest("includes")
-                .metavar("PATTERN")
-                .nargs("+");
+        inputGroup.addArgument("-e", "--encoding").help("Source files encoding (default: UTF-8)")
+                .dest("encoding").setDefault("UTF-8");
+        inputGroup.addArgument("-x", "--exclude").help("Exclude from analysis").dest("excludes")
+                .metavar("PATTERN").nargs("+");
+        inputGroup.addArgument("-i", "--include").help("Only include in analysis").dest("includes")
+                .metavar("PATTERN").nargs("+");
         AuthFileReader auth = new AuthFileReader();
         inputGroup.addArgument("-u", "--server-user")
                 .help("Username for HTTP authentication (by default read from ~/.apiwatchrc)")
-                .setDefault(auth.username)
-                .dest("username");
+                .setDefault(auth.username).dest("username");
         inputGroup.addArgument("-p", "--server-password")
                 .help("User password for HTTP authentication (by default read from ~/.apiwatchrc)")
-                .setDefault(auth.password)
-                .dest("password");
-        
+                .setDefault(auth.password).dest("password");
+
         ArgumentGroup outputGroup = cli.addArgumentGroup("Output options");
         outputGroup.addArgument("-v", "--verbosity")
                 .help("Display logging events starting from this level (default: INFO)")
-                .dest("verbosity")
-                .setDefault(Level.INFO)
-                .choices(ArgsUtil.LOG_LEVELS)
+                .dest("verbosity").setDefault(Level.INFO).choices(ArgsUtil.LOG_LEVELS)
                 .type(new ArgsUtil.LogLevelArgument());
         outputGroup.addArgument("-f", "--format")
-                .help("Output format for API stability violations (default: text)")
-                .dest("format")
+                .help("Output format for API stability violations (default: text)").dest("format")
                 .setDefault("text")
                 .choices(Serializers.availableFormats(APIStabilityViolation.class));
-        outputGroup.addArgument("-r", "--only-rules")
-                .help("Only consider these API stability rules")
-                .dest("only_rules")
-                .nargs("+")
-                .metavar("RULE_ID");
-        outputGroup.addArgument("-R", "--ignored-rules")
-                .help("Ignore these API stability rules")
-                .dest("ignored_rules")
-                .nargs("+")
-                .metavar("RULE_ID");
+        outputGroup.addArgument("-r", "--rules-config")
+                .help("API stability rules configuration file").dest("rules_config")
+                .type(new ArgsUtil.IniFileArgument());
         outputGroup.addArgument("-s", "--severity-threshold")
                 .help("Exclude all API stablity violations below this severity level")
-                .dest("severity_threshold")
-                .setDefault(Severity.INFO)
-                .choices(Severity.values())
+                .dest("severity_threshold").setDefault(Severity.INFO).choices(Severity.values())
                 .type(new ArgsUtil.SeverityArgument());
-        
 
         Namespace args = null;
         try {
@@ -169,9 +149,9 @@ public class APIWatch {
             System.err.println("use `-h/--help` for syntax");
             System.exit(1);
         }
-        
+
         Logging.configureLogging((Level) args.get("verbosity"));
-        
+
         return args;
     }
 }

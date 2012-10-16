@@ -13,13 +13,20 @@ import org.apiwatch.models.APIStabilityViolation;
 import org.apiwatch.models.ChangeType;
 import org.apiwatch.models.Function;
 import org.apiwatch.models.Severity;
-import org.apiwatch.models.Visibility;
 
-public class FunctionTypeChange implements APIStabilityRule {
+public class FunctionTypeChange extends RuleBase implements APIStabilityRule {
 
-    static String ID = "TYP002";
-    static String NAME = "Function Return Type Change";
-    static String MESSAGE = "Changed return type of %s function '%s' (%s -> %s)";
+    static final String ID = "TYP002";
+    static final String NAME = "Function Return Type Change";
+    static final String MESSAGE = "Changed return type of %s function '%s' (%s -> %s)";
+
+    public FunctionTypeChange() {
+        super();
+        privateSeverity = Severity.INFO;
+        scopeSeverity = Severity.CRITICAL;
+        protectedSeverity = Severity.CRITICAL;
+        publicSeverity = Severity.BLOCKER;
+    }
 
     @Override
     public String id() {
@@ -46,12 +53,23 @@ public class FunctionTypeChange implements APIStabilityRule {
     public APIStabilityViolation evaluate(APIDifference diff) {
         String message = String.format(MESSAGE, diff.visibility(), diff.name(),
                 diff.valueA, diff.valueB);
+        
         Severity severity;
-        if (diff.visibility() == Visibility.PRIVATE) {
-            severity = Severity.INFO;
-        } else {
-            severity = Severity.CRITICAL;
+        switch (diff.visibility()) {
+        case PRIVATE:
+            severity = privateSeverity;
+            break;
+        case SCOPE:
+            severity = scopeSeverity;
+            break;
+        case PROTECTED:
+            severity = protectedSeverity;
+            break;
+        case PUBLIC:
+        default:
+            severity = publicSeverity;
         }
+        
         return new APIStabilityViolation(diff, this, severity, message);
     }
     
