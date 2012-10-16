@@ -8,3 +8,5 @@ target
 **/target
 *.class
 *.jar
+
+/.pydevproject
