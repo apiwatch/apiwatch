@@ -23,10 +23,9 @@ import org.apiwatch.models.Variable;
 import org.apiwatch.util.DiffMaps;
 
 public class DifferencesCalculator {
-
     
     /**
-     * <p>Recursively calculate the differences between 2 {@link APIElement}s.</p>
+     * <p>Recursively calculate the differences between 2 {@link APIScope}s.</p>
      * 
      * <p>Here's how the algorithm looks like:</p>
      * <ol>
@@ -37,7 +36,7 @@ public class DifferencesCalculator {
      *   <li>return the list of differences </li>
      * </ol>
      */
-    public static List<APIDifference> getDiffs(APIElement a, APIElement b) {
+    public static List<APIDifference> getDiffs(APIScope a, APIScope b) {
         
         // 1. flatten elements
         HashMap<String, APIElement> elementsA = flatten(a, new HashMap<String, APIElement>());
