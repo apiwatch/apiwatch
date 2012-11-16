@@ -46,25 +46,8 @@ public class VersionView extends View {
     @Override
     public void get() throws ServletException, IOException, Http404 {
         try {
-
-            Component comp = Component.dao().queryForId(component);
-            if (comp == null) {
-                throw new Http404();
-            }
-
-            QueryBuilder<Version, String> builder = Version.dao().queryBuilder();
-            PreparedQuery<Version> query = builder.where().eq(Version.COMPONENT_COLUMN, comp).and()
-                    .eq(Version.NAME_COLUMN, version).prepare();
-            Version ver = Version.dao().queryForFirst(query);
-            if (ver == null) {
-                throw new Http404();
-            }
-
-            Version realVersion = ver;
-            while (realVersion.getAliasOf() != null) {
-                // resolve the real version
-                realVersion = realVersion.getAliasOf();
-            }
+            Version ver = Utils.getVersion(component, version);
+            Version realVersion = Utils.resolveRealVersion(ver);
 
             if (acceptsHTML()) {
                 String vis = request.getParameter("visibility");

@@ -14,6 +14,10 @@
                 <li><a href="../../">Components</a></li>
                 <li><a href="../">$version.Component</a></li>
                 <li class="active"><a href=".">$version.name</a></li>
+#elseif ( $menu == "diff" )
+                <li><a href="../../../../">Components</a></li>
+                <li><a href="../../../">$versionA.Component</a></li>
+                <li class="active"><a href=".">$versionA V.S. $versionB</a></li>
 #end
             </ul>
         </div>

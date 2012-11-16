@@ -73,6 +73,15 @@ public abstract class APIElement {
         return diffs;
     }
 
+
+    public String getSourceFile() {
+        return sourceFile;
+    }
+    
+    public Visibility getVisibility() {
+        return visibility;
+    }
+    
     @Override
     public String toString() {
         return ident();

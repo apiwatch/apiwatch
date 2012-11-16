@@ -31,4 +31,19 @@ public class APIStabilityViolation {
                 difference.element().sourceFile);
     }
 
+    public APIDifference getDifference() {
+        return difference;
+    }
+
+    public APIStabilityRule getRule() {
+        return rule;
+    }
+
+    public Severity getSeverity() {
+        return severity;
+    }
+
+    public String getMessage() {
+        return message;
+    }
 }

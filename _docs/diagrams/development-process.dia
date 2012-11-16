@@ -63,53 +63,57 @@
     </dia:attribute>
   </dia:diagramdata>
   <dia:layer name="Arrière-plan" visible="true" active="true">
-    <dia:object type="Standard - Box" version="0" id="O0">
+    <dia:object type="Standard - Line" version="0" id="O0">
       <dia:attribute name="obj_pos">
-        <dia:point val="-3,1.85"/>
+        <dia:point val="11.85,11.5"/>
       </dia:attribute>
       <dia:attribute name="obj_bb">
-        <dia:rectangle val="-3.025,1.825;15.475,15.575"/>
+        <dia:rectangle val="9.95825,10.9;13.7417,31.6428"/>
       </dia:attribute>
-      <dia:attribute name="elem_corner">
-        <dia:point val="-3,1.85"/>
+      <dia:attribute name="conn_endpoints">
+        <dia:point val="11.85,11.5"/>
+        <dia:point val="11.85,30.7"/>
       </dia:attribute>
-      <dia:attribute name="elem_width">
-        <dia:real val="18.449999999999999"/>
+      <dia:attribute name="numcp">
+        <dia:int val="1"/>
       </dia:attribute>
-      <dia:attribute name="elem_height">
-        <dia:real val="13.699999999999999"/>
+      <dia:attribute name="line_color">
+        <dia:color val="#4d4d4d"/>
       </dia:attribute>
-      <dia:attribute name="border_width">
-        <dia:real val="0.05000000074505806"/>
+      <dia:attribute name="line_width">
+        <dia:real val="1.2000000476837158"/>
       </dia:attribute>
-      <dia:attribute name="show_background">
-        <dia:boolean val="true"/>
+      <dia:attribute name="end_arrow">
+        <dia:enum val="22"/>
       </dia:attribute>
-      <dia:attribute name="line_style">
-        <dia:enum val="1"/>
+      <dia:attribute name="end_arrow_length">
+        <dia:real val="0.20000000000000001"/>
       </dia:attribute>
-      <dia:attribute name="dashlength">
-        <dia:real val="0.30000000000000016"/>
+      <dia:attribute name="end_arrow_width">
+        <dia:real val="0.33000000000000002"/>
       </dia:attribute>
     </dia:object>
-    <dia:object type="UML - Component" version="0" id="O1">
+    <dia:object type="UML - Note" version="0" id="O1">
       <dia:attribute name="obj_pos">
-        <dia:point val="0.7475,6.52"/>
+        <dia:point val="6.8675,12.5"/>
       </dia:attribute>
       <dia:attribute name="obj_bb">
-        <dia:rectangle val="0.6975,6.47;10.3775,10.07"/>
+        <dia:rectangle val="6.8175,12.45;16.8825,14.3983"/>
       </dia:attribute>
       <dia:attribute name="meta">
         <dia:composite type="dict"/>
       </dia:attribute>
       <dia:attribute name="elem_corner">
-        <dia:point val="0.7475,6.52"/>
+        <dia:point val="6.8675,12.5"/>
       </dia:attribute>
       <dia:attribute name="elem_width">
-        <dia:real val="9.5799999999999983"/>
+        <dia:real val="9.9650000000000016"/>
       </dia:attribute>
       <dia:attribute name="elem_height">
-        <dia:real val="3.5"/>
+        <dia:real val="1.8482666425868852"/>
+      </dia:attribute>
+      <dia:attribute name="line_width">
+        <dia:real val="0.10000000149011612"/>
       </dia:attribute>
       <dia:attribute name="line_colour">
         <dia:color val="#000000"/>
@@ -117,22 +121,19 @@
       <dia:attribute name="fill_colour">
         <dia:color val="#ffffff"/>
       </dia:attribute>
-      <dia:attribute name="stereotype">
-        <dia:string>##</dia:string>
-      </dia:attribute>
       <dia:attribute name="text">
         <dia:composite type="text">
           <dia:attribute name="string">
-            <dia:string>#OrderManagement#</dia:string>
+            <dia:string>#Expression de besoin#</dia:string>
           </dia:attribute>
           <dia:attribute name="font">
             <dia:font family="sans" style="80" name="Helvetica-Bold"/>
           </dia:attribute>
           <dia:attribute name="height">
-            <dia:real val="0.80000000000000004"/>
+            <dia:real val="0.94826664258688542"/>
           </dia:attribute>
           <dia:attribute name="pos">
-            <dia:point val="3.1475,7.815"/>
+            <dia:point val="7.2175,13.8525"/>
           </dia:attribute>
           <dia:attribute name="color">
             <dia:color val="#000000"/>
@@ -143,24 +144,27 @@
         </dia:composite>
       </dia:attribute>
     </dia:object>
-    <dia:object type="UML - Component" version="0" id="O2">
+    <dia:object type="UML - Note" version="0" id="O2">
       <dia:attribute name="obj_pos">
-        <dia:point val="5.7975,10.52"/>
+        <dia:point val="4.4975,15.274"/>
       </dia:attribute>
       <dia:attribute name="obj_bb">
-        <dia:rectangle val="5.7475,10.47;14.8625,14.07"/>
+        <dia:rectangle val="4.4475,15.224;19.2525,17.1723"/>
       </dia:attribute>
       <dia:attribute name="meta">
         <dia:composite type="dict"/>
       </dia:attribute>
       <dia:attribute name="elem_corner">
-        <dia:point val="5.7975,10.52"/>
+        <dia:point val="4.4975,15.274"/>
       </dia:attribute>
       <dia:attribute name="elem_width">
-        <dia:real val="9.0150000000000006"/>
+        <dia:real val="14.705000000000002"/>
       </dia:attribute>
       <dia:attribute name="elem_height">
-        <dia:real val="3.5"/>
+        <dia:real val="1.8482666425868852"/>
+      </dia:attribute>
+      <dia:attribute name="line_width">
+        <dia:real val="0.10000000149011612"/>
       </dia:attribute>
       <dia:attribute name="line_colour">
         <dia:color val="#000000"/>
@@ -168,22 +172,19 @@
       <dia:attribute name="fill_colour">
         <dia:color val="#ffffff"/>
       </dia:attribute>
-      <dia:attribute name="stereotype">
-        <dia:string>##</dia:string>
-      </dia:attribute>
       <dia:attribute name="text">
         <dia:composite type="text">
           <dia:attribute name="string">
-            <dia:string>#PersistanceLayer#</dia:string>
+            <dia:string>#Spécification formelle du besoin#</dia:string>
           </dia:attribute>
           <dia:attribute name="font">
             <dia:font family="sans" style="80" name="Helvetica-Bold"/>
           </dia:attribute>
           <dia:attribute name="height">
-            <dia:real val="0.80000000000000004"/>
+            <dia:real val="0.94826664258688542"/>
           </dia:attribute>
           <dia:attribute name="pos">
-            <dia:point val="8.1975,11.815"/>
+            <dia:point val="4.8475,16.6265"/>
           </dia:attribute>
           <dia:attribute name="color">
             <dia:color val="#000000"/>
@@ -194,24 +195,27 @@
         </dia:composite>
       </dia:attribute>
     </dia:object>
-    <dia:object type="UML - Component" version="0" id="O3">
+    <dia:object type="UML - Note" version="0" id="O3">
       <dia:attribute name="obj_pos">
-        <dia:point val="-2.4025,2.47"/>
+        <dia:point val="8.9975,18.048"/>
       </dia:attribute>
       <dia:attribute name="obj_bb">
-        <dia:rectangle val="-2.4525,2.42;5.37,6.02"/>
+        <dia:rectangle val="8.9475,17.998;14.7525,19.9463"/>
       </dia:attribute>
       <dia:attribute name="meta">
         <dia:composite type="dict"/>
       </dia:attribute>
       <dia:attribute name="elem_corner">
-        <dia:point val="-2.4025,2.47"/>
+        <dia:point val="8.9975,18.048"/>
       </dia:attribute>
       <dia:attribute name="elem_width">
-        <dia:real val="7.7225000000000001"/>
+        <dia:real val="5.7049999999999992"/>
       </dia:attribute>
       <dia:attribute name="elem_height">
-        <dia:real val="3.5"/>
+        <dia:real val="1.8482666425868852"/>
+      </dia:attribute>
+      <dia:attribute name="line_width">
+        <dia:real val="0.10000000149011612"/>
       </dia:attribute>
       <dia:attribute name="line_colour">
         <dia:color val="#000000"/>
@@ -219,22 +223,19 @@
       <dia:attribute name="fill_colour">
         <dia:color val="#ffffff"/>
       </dia:attribute>
-      <dia:attribute name="stereotype">
-        <dia:string>##</dia:string>
-      </dia:attribute>
       <dia:attribute name="text">
         <dia:composite type="text">
           <dia:attribute name="string">
-            <dia:string>#UserInterface#</dia:string>
+            <dia:string>#Conception#</dia:string>
           </dia:attribute>
           <dia:attribute name="font">
             <dia:font family="sans" style="80" name="Helvetica-Bold"/>
           </dia:attribute>
           <dia:attribute name="height">
-            <dia:real val="0.80000000000000004"/>
+            <dia:real val="0.94826664258688542"/>
           </dia:attribute>
           <dia:attribute name="pos">
-            <dia:point val="-0.0025,3.765"/>
+            <dia:point val="9.3475,19.4005"/>
           </dia:attribute>
           <dia:attribute name="color">
             <dia:color val="#000000"/>
@@ -245,24 +246,27 @@
         </dia:composite>
       </dia:attribute>
     </dia:object>
-    <dia:object type="UML - Component" version="0" id="O4">
+    <dia:object type="UML - Note" version="0" id="O4">
       <dia:attribute name="obj_pos">
-        <dia:point val="6.0975,2.47"/>
+        <dia:point val="9.455,26.37"/>
       </dia:attribute>
       <dia:attribute name="obj_bb">
-        <dia:rectangle val="6.0475,2.42;13.5575,6.02"/>
+        <dia:rectangle val="9.405,26.32;14.295,28.2683"/>
       </dia:attribute>
       <dia:attribute name="meta">
         <dia:composite type="dict"/>
       </dia:attribute>
       <dia:attribute name="elem_corner">
-        <dia:point val="6.0975,2.47"/>
+        <dia:point val="9.455,26.37"/>
       </dia:attribute>
       <dia:attribute name="elem_width">
-        <dia:real val="7.4100000000000001"/>
+        <dia:real val="4.7899999999999991"/>
       </dia:attribute>
       <dia:attribute name="elem_height">
-        <dia:real val="3.5"/>
+        <dia:real val="1.8482666425868852"/>
+      </dia:attribute>
+      <dia:attribute name="line_width">
+        <dia:real val="0.10000000149011612"/>
       </dia:attribute>
       <dia:attribute name="line_colour">
         <dia:color val="#000000"/>
@@ -270,22 +274,19 @@
       <dia:attribute name="fill_colour">
         <dia:color val="#ffffff"/>
       </dia:attribute>
-      <dia:attribute name="stereotype">
-        <dia:string>##</dia:string>
-      </dia:attribute>
       <dia:attribute name="text">
         <dia:composite type="text">
           <dia:attribute name="string">
-            <dia:string>#Notifications#</dia:string>
+            <dia:string>#Livraison#</dia:string>
           </dia:attribute>
           <dia:attribute name="font">
             <dia:font family="sans" style="80" name="Helvetica-Bold"/>
           </dia:attribute>
           <dia:attribute name="height">
-            <dia:real val="0.80000000000000004"/>
+            <dia:real val="0.94826664258688542"/>
           </dia:attribute>
           <dia:attribute name="pos">
-            <dia:point val="8.4975,3.765"/>
+            <dia:point val="9.805,27.7225"/>
           </dia:attribute>
           <dia:attribute name="color">
             <dia:color val="#000000"/>
@@ -296,24 +297,27 @@
         </dia:composite>
       </dia:attribute>
     </dia:object>
-    <dia:object type="UML - Component" version="0" id="O5">
+    <dia:object type="UML - Note" version="0" id="O5">
       <dia:attribute name="obj_pos">
-        <dia:point val="-1.7025,10.52"/>
+        <dia:point val="8.91625,23.596"/>
       </dia:attribute>
       <dia:attribute name="obj_bb">
-        <dia:rectangle val="-1.7525,10.47;5.19,14.07"/>
+        <dia:rectangle val="8.86625,23.546;14.8338,25.4943"/>
       </dia:attribute>
       <dia:attribute name="meta">
         <dia:composite type="dict"/>
       </dia:attribute>
       <dia:attribute name="elem_corner">
-        <dia:point val="-1.7025,10.52"/>
+        <dia:point val="8.91625,23.596"/>
       </dia:attribute>
       <dia:attribute name="elem_width">
-        <dia:real val="6.8424999999999994"/>
+        <dia:real val="5.8674999999999988"/>
       </dia:attribute>
       <dia:attribute name="elem_height">
-        <dia:real val="3.5"/>
+        <dia:real val="1.8482666425868852"/>
+      </dia:attribute>
+      <dia:attribute name="line_width">
+        <dia:real val="0.10000000149011612"/>
       </dia:attribute>
       <dia:attribute name="line_colour">
         <dia:color val="#000000"/>
@@ -321,22 +325,19 @@
       <dia:attribute name="fill_colour">
         <dia:color val="#ffffff"/>
       </dia:attribute>
-      <dia:attribute name="stereotype">
-        <dia:string>##</dia:string>
-      </dia:attribute>
       <dia:attribute name="text">
         <dia:composite type="text">
           <dia:attribute name="string">
-            <dia:string>#Accounting#</dia:string>
+            <dia:string>#Vérification#</dia:string>
           </dia:attribute>
           <dia:attribute name="font">
             <dia:font family="sans" style="80" name="Helvetica-Bold"/>
           </dia:attribute>
           <dia:attribute name="height">
-            <dia:real val="0.80000000000000004"/>
+            <dia:real val="0.94826664258688542"/>
           </dia:attribute>
           <dia:attribute name="pos">
-            <dia:point val="0.6975,11.815"/>
+            <dia:point val="9.26625,24.9485"/>
           </dia:attribute>
           <dia:attribute name="color">
             <dia:color val="#000000"/>
@@ -349,25 +350,25 @@
     </dia:object>
     <dia:object type="UML - Note" version="0" id="O6">
       <dia:attribute name="obj_pos">
-        <dia:point val="1.9,14.7"/>
+        <dia:point val="8.14125,20.822"/>
       </dia:attribute>
       <dia:attribute name="obj_bb">
-        <dia:rectangle val="1.85,14.65;10.935,16.45"/>
+        <dia:rectangle val="8.09125,20.772;15.6088,22.7203"/>
       </dia:attribute>
       <dia:attribute name="meta">
         <dia:composite type="dict"/>
       </dia:attribute>
       <dia:attribute name="elem_corner">
-        <dia:point val="1.9,14.7"/>
+        <dia:point val="8.14125,20.822"/>
       </dia:attribute>
       <dia:attribute name="elem_width">
-        <dia:real val="8.9849999999999994"/>
+        <dia:real val="7.4174999999999995"/>
       </dia:attribute>
       <dia:attribute name="elem_height">
-        <dia:real val="1.7000000000000002"/>
+        <dia:real val="1.8482666425868852"/>
       </dia:attribute>
       <dia:attribute name="line_width">
-        <dia:real val="0.05000000074505806"/>
+        <dia:real val="0.10000000149011612"/>
       </dia:attribute>
       <dia:attribute name="line_colour">
         <dia:color val="#000000"/>
@@ -378,16 +379,16 @@
       <dia:attribute name="text">
         <dia:composite type="text">
           <dia:attribute name="string">
-            <dia:string>#Awsome-O Online-Store#</dia:string>
+            <dia:string>#Mise en oeuvre#</dia:string>
           </dia:attribute>
           <dia:attribute name="font">
-            <dia:font family="monospace" style="0" name="Courier"/>
+            <dia:font family="sans" style="80" name="Helvetica-Bold"/>
           </dia:attribute>
           <dia:attribute name="height">
-            <dia:real val="0.80000000000000004"/>
+            <dia:real val="0.94826664258688542"/>
           </dia:attribute>
           <dia:attribute name="pos">
-            <dia:point val="2.225,15.92"/>
+            <dia:point val="8.49125,22.1745"/>
           </dia:attribute>
           <dia:attribute name="color">
             <dia:color val="#000000"/>

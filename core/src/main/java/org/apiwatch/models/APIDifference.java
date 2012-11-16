@@ -20,14 +20,11 @@ public class APIDifference {
     public Object valueB;
     public transient APIDifference parent; /* not serialized */
     public transient Set<APIDifference> subDiffs; /* not serialized */
-    
-    
-    public APIDifference(ChangeType changeType, APIElement elementA, APIElement elementB)
-    {
+
+    public APIDifference(ChangeType changeType, APIElement elementA, APIElement elementB) {
         this(changeType, elementA, elementB, null, null, null, null, null);
     }
-    
-    
+
     public APIDifference(ChangeType changeType, APIElement elementA, APIElement elementB,
             String attribute, Object valueA, Object valueB)
     {
@@ -57,7 +54,7 @@ public class APIDifference {
         APIElement element = element();
         return element != null ? element.name() : null;
     }
-    
+
     public String path() {
         APIElement element = element();
         return element != null ? element.path() : APIScope.ROOT_PATH;
@@ -67,9 +64,34 @@ public class APIDifference {
         APIElement element = element();
         return element != null ? element.visibility : null;
     }
-    
+
     @Override
     public String toString() {
-        return changeType.toString() + '(' + path() + ')'; 
+        return changeType.toString() + '(' + path() + ')';
     }
+
+    public ChangeType getChangeType() {
+        return changeType;
+    }
+
+    public APIElement getElementA() {
+        return elementA;
+    }
+
+    public APIElement getElementB() {
+        return elementB;
+    }
+
+    public String getAttribute() {
+        return attribute;
+    }
+
+    public Object getValueA() {
+        return valueA;
+    }
+
+    public Object getValueB() {
+        return valueB;
+    }
+
 }
