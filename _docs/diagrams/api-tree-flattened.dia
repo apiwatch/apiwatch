@@ -86,7 +86,10 @@
         <dia:boolean val="true"/>
       </dia:attribute>
       <dia:attribute name="line_style">
-        <dia:enum val="4"/>
+        <dia:enum val="1"/>
+      </dia:attribute>
+      <dia:attribute name="dashlength">
+        <dia:real val="0.30000000000000016"/>
       </dia:attribute>
     </dia:object>
     <dia:object type="Standard - Box" version="0" id="O1">
@@ -112,7 +115,10 @@
         <dia:boolean val="true"/>
       </dia:attribute>
       <dia:attribute name="line_style">
-        <dia:enum val="4"/>
+        <dia:enum val="1"/>
+      </dia:attribute>
+      <dia:attribute name="dashlength">
+        <dia:real val="0.30000000000000016"/>
       </dia:attribute>
     </dia:object>
     <dia:object type="UML - Note" version="0" id="O2">
@@ -528,7 +534,7 @@
         <dia:boolean val="false"/>
       </dia:attribute>
       <dia:attribute name="line_width">
-        <dia:real val="0.10000000000000001"/>
+        <dia:real val="0.05000000074505806"/>
       </dia:attribute>
       <dia:attribute name="line_color">
         <dia:color val="#000000"/>
@@ -638,7 +644,7 @@
         <dia:boolean val="false"/>
       </dia:attribute>
       <dia:attribute name="line_width">
-        <dia:real val="0.10000000000000001"/>
+        <dia:real val="0.05000000074505806"/>
       </dia:attribute>
       <dia:attribute name="line_color">
         <dia:color val="#000000"/>
@@ -772,7 +778,7 @@
         <dia:boolean val="false"/>
       </dia:attribute>
       <dia:attribute name="line_width">
-        <dia:real val="0.10000000000000001"/>
+        <dia:real val="0.05000000074505806"/>
       </dia:attribute>
       <dia:attribute name="line_color">
         <dia:color val="#000000"/>
@@ -906,7 +912,7 @@
         <dia:boolean val="false"/>
       </dia:attribute>
       <dia:attribute name="line_width">
-        <dia:real val="0.10000000000000001"/>
+        <dia:real val="0.05000000074505806"/>
       </dia:attribute>
       <dia:attribute name="line_color">
         <dia:color val="#000000"/>
@@ -1040,7 +1046,7 @@
         <dia:boolean val="false"/>
       </dia:attribute>
       <dia:attribute name="line_width">
-        <dia:real val="0.10000000000000001"/>
+        <dia:real val="0.05000000074505806"/>
       </dia:attribute>
       <dia:attribute name="line_color">
         <dia:color val="#000000"/>
@@ -1150,7 +1156,7 @@
         <dia:boolean val="false"/>
       </dia:attribute>
       <dia:attribute name="line_width">
-        <dia:real val="0.10000000000000001"/>
+        <dia:real val="0.05000000074505806"/>
       </dia:attribute>
       <dia:attribute name="line_color">
         <dia:color val="#000000"/>
@@ -1284,7 +1290,7 @@
         <dia:boolean val="false"/>
       </dia:attribute>
       <dia:attribute name="line_width">
-        <dia:real val="0.10000000000000001"/>
+        <dia:real val="0.05000000074505806"/>
       </dia:attribute>
       <dia:attribute name="line_color">
         <dia:color val="#000000"/>
@@ -1367,7 +1373,7 @@
         <dia:point val="32.0151,2.7346"/>
       </dia:attribute>
       <dia:attribute name="obj_bb">
-        <dia:rectangle val="31.9901,2.46061;48.1608,3.04152"/>
+        <dia:rectangle val="31.9651,2.42014;48.2167,3.08194"/>
       </dia:attribute>
       <dia:attribute name="conn_endpoints">
         <dia:point val="32.0151,2.7346"/>
@@ -1377,10 +1383,7 @@
         <dia:int val="1"/>
       </dia:attribute>
       <dia:attribute name="line_width">
-        <dia:real val="0.05000000074505806"/>
-      </dia:attribute>
-      <dia:attribute name="line_style">
-        <dia:enum val="1"/>
+        <dia:real val="0.10000000149011612"/>
       </dia:attribute>
       <dia:attribute name="end_arrow">
         <dia:enum val="1"/>
@@ -1390,9 +1393,6 @@
       </dia:attribute>
       <dia:attribute name="end_arrow_width">
         <dia:real val="0.5"/>
-      </dia:attribute>
-      <dia:attribute name="dashlength">
-        <dia:real val="0.40000000000000013"/>
       </dia:attribute>
       <dia:connections>
         <dia:connection handle="0" to="O2" connection="8"/>
@@ -1404,7 +1404,7 @@
         <dia:point val="36.6069,5.48755"/>
       </dia:attribute>
       <dia:attribute name="obj_bb">
-        <dia:rectangle val="36.5817,5.10548;49.7008,5.68637"/>
+        <dia:rectangle val="36.5565,5.06522;49.7567,5.727"/>
       </dia:attribute>
       <dia:attribute name="conn_endpoints">
         <dia:point val="36.6069,5.48755"/>
@@ -1414,10 +1414,7 @@
         <dia:int val="1"/>
       </dia:attribute>
       <dia:attribute name="line_width">
-        <dia:real val="0.05000000074505806"/>
-      </dia:attribute>
-      <dia:attribute name="line_style">
-        <dia:enum val="1"/>
+        <dia:real val="0.10000000149011612"/>
       </dia:attribute>
       <dia:attribute name="end_arrow">
         <dia:enum val="1"/>
@@ -1427,9 +1424,6 @@
       </dia:attribute>
       <dia:attribute name="end_arrow_width">
         <dia:real val="0.5"/>
-      </dia:attribute>
-      <dia:attribute name="dashlength">
-        <dia:real val="0.40000000000000013"/>
       </dia:attribute>
       <dia:connections>
         <dia:connection handle="0" to="O8" connection="8"/>
@@ -1441,7 +1435,7 @@
         <dia:point val="38.5741,8.06144"/>
       </dia:attribute>
       <dia:attribute name="obj_bb">
-        <dia:rectangle val="38.549,7.72411;49.721,8.30501"/>
+        <dia:rectangle val="38.5239,7.68377;49.7769,8.34557"/>
       </dia:attribute>
       <dia:attribute name="conn_endpoints">
         <dia:point val="38.5741,8.06144"/>
@@ -1451,10 +1445,7 @@
         <dia:int val="1"/>
       </dia:attribute>
       <dia:attribute name="line_width">
-        <dia:real val="0.05000000074505806"/>
-      </dia:attribute>
-      <dia:attribute name="line_style">
-        <dia:enum val="1"/>
+        <dia:real val="0.10000000149011612"/>
       </dia:attribute>
       <dia:attribute name="end_arrow">
         <dia:enum val="1"/>
@@ -1464,9 +1455,6 @@
       </dia:attribute>
       <dia:attribute name="end_arrow_width">
         <dia:real val="0.5"/>
-      </dia:attribute>
-      <dia:attribute name="dashlength">
-        <dia:real val="0.40000000000000013"/>
       </dia:attribute>
       <dia:connections>
         <dia:connection handle="0" to="O3" connection="8"/>
@@ -1478,7 +1466,7 @@
         <dia:point val="42.7746,11.1874"/>
       </dia:attribute>
       <dia:attribute name="obj_bb">
-        <dia:rectangle val="42.7495,10.8633;48.3461,11.4442"/>
+        <dia:rectangle val="42.7243,10.823;48.402,11.4848"/>
       </dia:attribute>
       <dia:attribute name="conn_endpoints">
         <dia:point val="42.7746,11.1874"/>
@@ -1488,10 +1476,7 @@
         <dia:int val="1"/>
       </dia:attribute>
       <dia:attribute name="line_width">
-        <dia:real val="0.05000000074505806"/>
-      </dia:attribute>
-      <dia:attribute name="line_style">
-        <dia:enum val="1"/>
+        <dia:real val="0.10000000149011612"/>
       </dia:attribute>
       <dia:attribute name="end_arrow">
         <dia:enum val="1"/>
@@ -1501,9 +1486,6 @@
       </dia:attribute>
       <dia:attribute name="end_arrow_width">
         <dia:real val="0.5"/>
-      </dia:attribute>
-      <dia:attribute name="dashlength">
-        <dia:real val="0.40000000000000013"/>
       </dia:attribute>
       <dia:connections>
         <dia:connection handle="0" to="O7" connection="8"/>
@@ -1515,7 +1497,7 @@
         <dia:point val="39.6718,14.3176"/>
       </dia:attribute>
       <dia:attribute name="obj_bb">
-        <dia:rectangle val="39.6467,13.9763;49.7032,14.5572"/>
+        <dia:rectangle val="39.6216,13.9359;49.7591,14.5977"/>
       </dia:attribute>
       <dia:attribute name="conn_endpoints">
         <dia:point val="39.6718,14.3176"/>
@@ -1525,10 +1507,7 @@
         <dia:int val="1"/>
       </dia:attribute>
       <dia:attribute name="line_width">
-        <dia:real val="0.05000000074505806"/>
-      </dia:attribute>
-      <dia:attribute name="line_style">
-        <dia:enum val="1"/>
+        <dia:real val="0.10000000149011612"/>
       </dia:attribute>
       <dia:attribute name="end_arrow">
         <dia:enum val="1"/>
@@ -1538,9 +1517,6 @@
       </dia:attribute>
       <dia:attribute name="end_arrow_width">
         <dia:real val="0.5"/>
-      </dia:attribute>
-      <dia:attribute name="dashlength">
-        <dia:real val="0.40000000000000013"/>
       </dia:attribute>
       <dia:connections>
         <dia:connection handle="0" to="O4" connection="8"/>
@@ -1552,7 +1528,7 @@
         <dia:point val="43.8722,17.3971"/>
       </dia:attribute>
       <dia:attribute name="obj_bb">
-        <dia:rectangle val="43.8471,17.0977;48.3457,17.6786"/>
+        <dia:rectangle val="43.8221,17.0573;48.4016,17.7191"/>
       </dia:attribute>
       <dia:attribute name="conn_endpoints">
         <dia:point val="43.8722,17.3971"/>
@@ -1562,10 +1538,7 @@
         <dia:int val="1"/>
       </dia:attribute>
       <dia:attribute name="line_width">
-        <dia:real val="0.05000000074505806"/>
-      </dia:attribute>
-      <dia:attribute name="line_style">
-        <dia:enum val="1"/>
+        <dia:real val="0.10000000149011612"/>
       </dia:attribute>
       <dia:attribute name="end_arrow">
         <dia:enum val="1"/>
@@ -1575,9 +1548,6 @@
       </dia:attribute>
       <dia:attribute name="end_arrow_width">
         <dia:real val="0.5"/>
-      </dia:attribute>
-      <dia:attribute name="dashlength">
-        <dia:real val="0.40000000000000013"/>
       </dia:attribute>
       <dia:connections>
         <dia:connection handle="0" to="O5" connection="8"/>
@@ -1589,7 +1559,7 @@
         <dia:point val="46.131,21.0279"/>
       </dia:attribute>
       <dia:attribute name="obj_bb">
-        <dia:rectangle val="46.1058,20.7289;48.6412,21.3098"/>
+        <dia:rectangle val="46.0807,20.6886;48.6971,21.3504"/>
       </dia:attribute>
       <dia:attribute name="conn_endpoints">
         <dia:point val="46.131,21.0279"/>
@@ -1599,10 +1569,7 @@
         <dia:int val="1"/>
       </dia:attribute>
       <dia:attribute name="line_width">
-        <dia:real val="0.05000000074505806"/>
-      </dia:attribute>
-      <dia:attribute name="line_style">
-        <dia:enum val="1"/>
+        <dia:real val="0.10000000149011612"/>
       </dia:attribute>
       <dia:attribute name="end_arrow">
         <dia:enum val="1"/>
@@ -1612,9 +1579,6 @@
       </dia:attribute>
       <dia:attribute name="end_arrow_width">
         <dia:real val="0.5"/>
-      </dia:attribute>
-      <dia:attribute name="dashlength">
-        <dia:real val="0.40000000000000013"/>
       </dia:attribute>
       <dia:connections>
         <dia:connection handle="0" to="O6" connection="8"/>

@@ -22,10 +22,11 @@ tokens {
     C_SOURCE;
     VARIABLE_DECLARATION;
     FUNCTION_DECLARATION;
+    TYPE_DECLARATION;
     FUNCTION_DEFINITION;
     DECLARATOR;
     ARRAY_DECL;
-    FUNCTION_PARAMS;
+    FUNCTION_ARGS;
     PARAM;
     DECL_SPECIFIERS;
     MODIFIER;
@@ -38,10 +39,11 @@ tokens {
     IDENTIFIER_LIST;
     POINTER;
     ENUMERATOR;
-	PRE_INCR;
-	PRE_DECR;
-	POST_INCR;
-	POST_DECR;
+    PRE_INCR;
+    PRE_DECR;
+    POST_INCR;
+    POST_DECR;
+    BIT_COUNT;
 }
 
 @header {
@@ -57,6 +59,7 @@ package org.apiwatch.analyser.c;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Stack;
  
 import org.apiwatch.analyser.c.Header;
@@ -85,9 +88,8 @@ import org.apiwatch.analyser.c.Header;
     
 private boolean isTypeDef = false;
 /* to track typedefs and recognize type names from identifiers */
-private Stack<HashSet<String>> scopeStack;
-
-public List<Header> headers;
+private Stack<HashSet<String>> scopeStack = new Stack<HashSet<String>>();
+public List<Header> headers = new ArrayList<Header>();
 
 boolean isInSystemHeader(int line) {
     if (this.headers == null || this.headers.isEmpty()) {
@@ -143,13 +145,13 @@ boolean isTypeName(String name) {
 
 @lexer::members {
 
-public String[] systemPaths;
+public String[] systemPaths = new String[0];
 public List<Header> headers = new ArrayList<Header>(); 
-static Pattern PREPROC_LINE = Pattern.compile("#\\s*(\\d+)\\s*\"(.+?)\"");
+static final Pattern PREPROC_LINE = Pattern.compile("#\\s*(\\d+)\\s*\"(.+?)\"");
 
 private void recordHeader(int line, String text) {
     boolean isSystemHeader = false;
-    text = text.replace("\\\\", "\\");
+    text = text.replace("\\\\", "\\"); // for windows paths
     int sourceLine = 0;
     String sourceFile = null;
     
@@ -225,11 +227,14 @@ declaration
 }                                                                  // special case, looking for typedef
   : TYPEDEF declaration_specifiers? {isTypeDef = true;} init_declarator_list compiler_directive* SEMI
                           -> {isInSystemHeader(line)}? // remove from AST
-                          -> ^(TYPEDEF[sourceFile] declaration_specifiers? init_declarator_list)
-  | declaration_specifiers i=init_declarator_list? compiler_directive* SEMI
+                          -> ^(TYPE_DECLARATION[sourceFile] declaration_specifiers? init_declarator_list)
+  | d=declaration_specifiers compiler_directive* SEMI
         -> {isInSystemHeader(line)}? // remove from AST
-        -> {$i.isFunction}? ^(FUNCTION_DECLARATION[sourceFile] declaration_specifiers init_declarator_list?)
-        ->                  ^(VARIABLE_DECLARATION[sourceFile] declaration_specifiers init_declarator_list?)
+        -> ^(TYPE_DECLARATION[sourceFile] declaration_specifiers)
+  | d=declaration_specifiers i=init_declarator_list compiler_directive* SEMI
+        -> {isInSystemHeader(line)}? // remove from AST
+        -> {$i.isFunction}? ^(FUNCTION_DECLARATION[sourceFile] declaration_specifiers init_declarator_list)
+        ->                  ^(VARIABLE_DECLARATION[sourceFile] declaration_specifiers init_declarator_list)
   ;
 
 declaration_specifiers
@@ -245,9 +250,11 @@ init_declarator returns [boolean isFunction]
   ;
 
 decl_specifier
-  : storage_class_specifier -> ^(MODIFIER storage_class_specifier)
-  | type_specifier          -> ^(TYPE type_specifier)
-  | type_qualifier          -> ^(MODIFIER type_qualifier)
+  : compiler_directive       ->
+  | storage_class_specifier  -> MODIFIER[$storage_class_specifier.text]
+  | type_qualifier           -> MODIFIER[$type_qualifier.text]
+  | simple_type_specifier    -> TYPE[$simple_type_specifier.text]
+  | complex_type_specifier   -> ^(TYPE complex_type_specifier)
   ;
 
 storage_class_specifier
@@ -257,7 +264,7 @@ storage_class_specifier
   | REGISTER
   ;
 
-type_specifier
+simple_type_specifier
   : VOID
   | CHAR
   | SHORT
@@ -267,14 +274,22 @@ type_specifier
   | DOUBLE
   | SIGNED
   | UNSIGNED
-  | struct_or_union_specifier
-  | enum_specifier
-  | type_id
+  | {isTypeName(input.LT(1).getText())}? IDENTIFIER
+  ;
+  catch [FailedPredicateException fpe] {
+    throw new NoViableAltException("", 0, 0, input);
+  }
+
+type_qualifier
+  : CONST
+  | INLINE
+  | VOLATILE
   ;
 
-type_id
-    : {isTypeName(input.LT(1).getText())}? IDENTIFIER
-    ;
+complex_type_specifier
+  : struct_or_union_specifier
+  | enum_specifier
+  ;
 
 struct_or_union_specifier
 options {k=3;}
@@ -284,10 +299,10 @@ options {k=3;}
 @after {
     scopeStack.pop();
 }
-  : struct_or_union IDENTIFIER? LCURLY struct_declaration_list RCURLY
-                     -> ^(STRUCTURE[$struct_or_union.text] IDENTIFIER? struct_declaration_list)
-  | struct_or_union IDENTIFIER
-                     -> ^(STRUCTURE[$struct_or_union.text] IDENTIFIER)
+  : struct_or_union LCURLY struct_declaration_list RCURLY
+                     -> ^(STRUCTURE[$struct_or_union.text] struct_declaration_list)
+  | struct_or_union IDENTIFIER (LCURLY struct_declaration_list RCURLY)?
+                     -> ^(STRUCTURE[$struct_or_union.text] IDENTIFIER struct_declaration_list?)
   ;
 
 struct_or_union
@@ -305,12 +320,13 @@ struct_declaration
   ;
 
 specifier_qualifier_list
-  : specifier_qualifer+     -> ^(TYPE specifier_qualifer+)
+  : specifier_qualifer+     -> ^(DECL_SPECIFIERS specifier_qualifer+)
   ;
 
 specifier_qualifer
-  :	type_qualifier 
-  | type_specifier
+  :	type_qualifier          -> MODIFIER[$type_qualifier.text]
+  | simple_type_specifier   -> TYPE[$simple_type_specifier.text]
+  | complex_type_specifier  -> ^(TYPE complex_type_specifier)
   ;
 
 struct_declarator_list
@@ -318,15 +334,16 @@ struct_declarator_list
   ;
 
 struct_declarator
-  : declarator (COLON constant_expression)?
-  | COLON constant_expression
+  : declarator COLON constant_expression   -> declarator BIT_COUNT[$constant_expression.text]
+  | COLON constant_expression              -> BIT_COUNT[$constant_expression.text]
+  | declarator
   ;
 
 enum_specifier
 options {k=3;}
-  : ENUM LCURLY enumerator_list RCURLY             -> ^(ENUM enumerator_list)
-  | ENUM IDENTIFIER LCURLY enumerator_list RCURLY  -> ^(ENUM IDENTIFIER enumerator_list)
-  | ENUM IDENTIFIER                                -> ^(ENUM IDENTIFIER)
+  : ENUM LCURLY enumerator_list RCURLY                  -> ^(ENUM enumerator_list)
+  | ENUM IDENTIFIER LCURLY enumerator_list RCURLY       -> ^(ENUM IDENTIFIER enumerator_list)
+  | ENUM IDENTIFIER                                     -> ^(ENUM IDENTIFIER)
   ;
 
 enumerator_list
@@ -334,39 +351,47 @@ enumerator_list
   ;
 
 enumerator
-  : IDENTIFIER (ASSIGN constant_expression)?  -> ^(ENUMERATOR IDENTIFIER)
+  : IDENTIFIER ASSIGN constant_expression
+                        -> ^(ENUMERATOR[$IDENTIFIER.text] ASSIGN[$constant_expression.text])
+  | IDENTIFIER          ->   ENUMERATOR[$IDENTIFIER.text]
   ;
 
-type_qualifier
-  : CONST
-  | INLINE
-  | VOLATILE
-  ;
+
 
 declarator returns [boolean isFunction]
-  : compiler_directive* pointer? d=direct_declarator {$isFunction=$d.isFunction;}
-  | compiler_directive* pointer {$isFunction=false;}
+  : compiler_directive* pointer? compiler_directive* direct_declarator {$isFunction=$direct_declarator.isFunction;}
+                        -> ^(DECLARATOR pointer? direct_declarator)
+  | compiler_directive* pointer compiler_directive*                   {$isFunction=false;}
+                        -> ^(DECLARATOR pointer)
   ;
 
 direct_declarator returns [boolean isFunction]
   : IDENTIFIER {
-	    /* record this identifier as a typename for the current scope */
+	    /* record this identifier as a new typename for the current scope */
 	    if (isTypeDef && !(scopeStack == null || scopeStack.isEmpty())) {
 	        scopeStack.peek().add($IDENTIFIER.text);
 	    }
     } s=declarator_suffix*   {$isFunction=$s.isFunction;}  
-                     -> ^(DECLARATOR IDENTIFIER declarator_suffix*)
-  | LPAREN declarator RPAREN s=declarator_suffix* {$isFunction=$s.isFunction;}
-                     -> ^(DECLARATOR declarator declarator_suffix*)
+  | LPAREN! declarator RPAREN! s=declarator_suffix* {$isFunction=$s.isFunction;}
   ;
 
+
 declarator_suffix returns [boolean isFunction]
-  : LBRACK constant_expression RBRACK                {$isFunction=false;} -> ^(ARRAY_DECL constant_expression)
-  | LBRACK RBRACK                                    {$isFunction=false;} -> ^(ARRAY_DECL)
-  | LPAREN parameter_type_list RPAREN compiler_directive* {$isFunction=true;}  -> ^(FUNCTION_PARAMS parameter_type_list)
-  | LPAREN identifier_list RPAREN compiler_directive*     {$isFunction=true;}  -> ^(FUNCTION_PARAMS identifier_list)
-  | LPAREN RPAREN compiler_directive*                     {$isFunction=true;}  -> ^(FUNCTION_PARAMS)
+  : array_suffix      {$isFunction=false;}
+  | function_suffix   {$isFunction=true;}
   ;
+
+array_suffix
+  : LBRACK RBRACK                        -> ^(ARRAY_DECL[$LBRACK.text + $RBRACK.text])
+  | LBRACK e=constant_expression RBRACK  -> ^(ARRAY_DECL[$LBRACK.text + $e.text + $RBRACK.text])
+  ;
+
+function_suffix
+  : LPAREN VOID? RPAREN compiler_directive*               -> ^(FUNCTION_ARGS)
+  | LPAREN parameter_type_list RPAREN compiler_directive* -> ^(FUNCTION_ARGS parameter_type_list)
+  | LPAREN identifier_list RPAREN compiler_directive*     -> ^(FUNCTION_ARGS identifier_list)
+  ;
+
 
 compiler_directive
   : attribute_specifier
@@ -401,7 +426,7 @@ attribute_parameter_list
   ;
 
 pointer
-  : STAR type_qualifier* pointer? -> ^(POINTER type_qualifier* pointer?)
+  : STAR type_qualifier* pointer? -> ^(POINTER[$text])
   ;
 
 parameter_type_list
@@ -448,76 +473,17 @@ abstract_declarator_suffix
   
 initializer
   : assignment_expression
-  | LCURLY initializer_list COMMA? RCURLY -> initializer_list
+  | LCURLY initializer_list COMMA? RCURLY
   ;
 
 initializer_list
-  : initializer (COMMA! initializer)*
+  : initializer (COMMA initializer)*
   ;
 
 // E x p r e s s i o n s
 
-argument_expression_list
-  : assignment_expression (COMMA! assignment_expression)*
-  ;
-
-additive_expression
-  : multiplicative_expression ((PLUS^|MINUS^) multiplicative_expression)*
-  ;
-
-multiplicative_expression
-  : cast_expression ((STAR^|DIV^|MOD^) cast_expression)*
-  ;
-
-cast_expression
-  : LPAREN type_name RPAREN cast_expression -> ^(CAST type_name cast_expression)
-  | unary_expression
-  ;
-
-unary_expression
-  : postfix_expression
-  | INCR unary_expression -> ^(PRE_INCR unary_expression)
-  | DECR unary_expression -> ^(PRE_DECR unary_expression)
-  | AND cast_expression
-  | STAR^ cast_expression
-  | PLUS^ cast_expression
-  | MINUS^ cast_expression
-  | NOT^ cast_expression
-  | LOGICAL_NOT^ cast_expression
-  | SIZEOF^ unary_expression
-  | SIZEOF^ LPAREN! type_name RPAREN!
-  ;
-
-postfix_expression
-  : primary_expression (LBRACK expression RBRACK)+               -> ^(ARRAY_ACCESS primary_expression expression+)
-  | primary_expression (LPAREN RPAREN)+                          -> ^(CALL primary_expression+)
-  | primary_expression (LPAREN argument_expression_list RPAREN)+ -> ^(CALL primary_expression argument_expression_list+)
-  | primary_expression (DOT IDENTIFIER)+                         -> ^(DOT primary_expression IDENTIFIER+)
-  | primary_expression (ARROW IDENTIFIER)+                       -> ^(ARROW primary_expression IDENTIFIER+)
-  | primary_expression INCR+                                     -> ^(POST_INCR primary_expression INCR+)
-  | primary_expression DECR+                                     -> ^(POST_DECR primary_expression DECR+)
-  | primary_expression
-  ;
-
-primary_expression
-  : IDENTIFIER
-  | constant
-  | LPAREN! expression RPAREN!
-  ;
-
-constant
-  : HEX_LITERAL
-  | OCTAL_LITERAL
-  | DECIMAL_LITERAL
-  | CHARACTER_LITERAL
-  | STRING_LITERAL+
-  | FLOATING_POINT_LITERAL
-  ;
-
-/////
-
 expression
-  : assignment_expression (COMMA! assignment_expression)*
+  : assignment_expression (COMMA assignment_expression)*
   ;
 
 constant_expression
@@ -545,6 +511,68 @@ assignment_operator
   | AND_ASSIGN
   | XOR_ASSIGN
   | OR_ASSIGN
+  ;
+
+argument_expression_list
+  : assignment_expression (COMMA assignment_expression)*
+  ;
+
+additive_expression
+  : multiplicative_expression ((PLUS|MINUS) multiplicative_expression)*
+  ;
+
+multiplicative_expression
+  : cast_expression ((STAR|DIV|MOD) cast_expression)*
+  ;
+
+cast_expression
+  : LPAREN type_name RPAREN cast_expression
+  | unary_expression
+  ;
+
+unary_expression
+  : postfix_expression
+  | INCR unary_expression
+  | DECR unary_expression
+  | unary_operator cast_expression
+  | SIZEOF unary_expression
+  | SIZEOF LPAREN type_name RPAREN
+  ;
+
+unary_operator
+  : AND
+  | STAR
+  | PLUS
+  | MINUS
+  | NOT
+  | LOGICAL_NOT
+  ;
+
+postfix_expression
+  : primary_expression 
+      ( LBRACK expression RBRACK
+      | LPAREN RPAREN
+      | LPAREN argument_expression_list RPAREN
+      | DOT IDENTIFIER
+      | ARROW IDENTIFIER           
+      | INCR
+      | DECR
+      )*
+  ;
+
+primary_expression
+  : IDENTIFIER
+  | constant
+  | LPAREN expression RPAREN
+  ;
+
+constant
+  : HEX_LITERAL
+  | OCTAL_LITERAL
+  | DECIMAL_LITERAL
+  | CHARACTER_LITERAL
+  | FLOATING_POINT_LITERAL
+  | STRING_LITERAL+
   ;
 
 conditional_expression
@@ -619,8 +647,8 @@ statement_list
   ;
 
 expression_statement
-  : SEMI
-  | expression SEMI
+  : SEMI!
+  | expression SEMI!
   ;
 
 selection_statement
@@ -709,14 +737,14 @@ DOUBLE             : 'double'          ;
 ELSE               : 'else'            ;
 ENUM               : 'enum'            ;
 EXTERN             : 'extern'          ;
-EXTENSION          : '__extension__' {$channel=HIDDEN;}; // gcc specific
+EXTENSION          : '__extension__' {$channel=HIDDEN;}; // GNU specific
 FLOAT              : 'float'           ;
 FOR                : 'for'             ;
-ATTRIBUTE          : '__attribute__'   ; // gcc specific
+ATTRIBUTE          : '__attribute__'   ; // GNU specific
 GOTO               : 'goto'            ;
 IF                 : 'if'              ;
 INT                : 'int'             ;
-INLINE             : 'inline'|'__inline__'; // c99
+INLINE             : 'inline'|'__inline__'|'__inline'; // c99
 LONG               : 'long'            ;
 REGISTER           : 'register'        ;
 RESTRICT           : ('restrict'|'__restrict'|'__restrict__') {$channel=HIDDEN;};
@@ -826,6 +854,6 @@ LINE_COMMENT
   : '//' ~('\n'|'\r')* '\r'? '\n' {$channel=HIDDEN;}
   ;
 
-LINE_COMMAND 
-  : '#' ~('\n'|'\r')* '\r'? '\n' {$channel=HIDDEN; this.recordHeader($line, $text);}
+PREPROCESSOR_COMMAND 
+  : '#' ~('\n'|'\r')* '\r'? '\n' {$channel=HIDDEN; recordHeader($line, $text);}
   ;

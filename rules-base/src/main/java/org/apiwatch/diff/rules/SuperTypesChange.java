@@ -23,9 +23,9 @@ public class SuperTypesChange extends RuleBase implements APIStabilityRule {
     public SuperTypesChange() {
         super();
         privateSeverity = Severity.INFO;
-        scopeSeverity = Severity.MAJOR;
-        protectedSeverity = Severity.MAJOR;
-        publicSeverity = Severity.CRITICAL;
+        scopeSeverity = Severity.MINOR;
+        protectedSeverity = Severity.MINOR;
+        publicSeverity = Severity.MAJOR;
     }
 
     @Override

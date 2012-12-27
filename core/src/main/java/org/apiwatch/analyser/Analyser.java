@@ -74,6 +74,8 @@ public class Analyser {
             worker.start();
             workers.add(worker);
         }
+        
+        LOGGER.info("Analysing API from " + files.size() + " files...");
         for (Worker worker : workers) {
             worker.join();
         }

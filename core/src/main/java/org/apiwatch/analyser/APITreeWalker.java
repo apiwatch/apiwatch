@@ -21,7 +21,7 @@ public abstract class APITreeWalker {
     /*-----------------------------------------------------------------------*/
     public final String language;
     public final String sourceFile;
-    public final Stack<APIElement> scopeStack = new Stack<APIElement>();
+    public final Stack<APIElement> apiStack = new Stack<APIElement>();
     public final APIScope globalScope;
 
     /*-----------------------------------------------------------------------*/
@@ -33,7 +33,7 @@ public abstract class APITreeWalker {
         globalScope = new APIScope();
         globalScope.language = language;
         globalScope.name = language;
-        scopeStack.push(globalScope);
+        apiStack.push(globalScope);
     }
     
     /*-----------------------------------------------------------------------*/

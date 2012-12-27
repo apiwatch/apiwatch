@@ -22,6 +22,12 @@ public class Variable extends Symbol {
         this.type = type;
         this.constraints = constraints;
     }
+    
+    public Variable(Variable other) {
+        super(other.name, other.language, other.sourceFile, other.visibility, other.parent, other.modifiers);
+        this.type = other.type;
+        this.constraints = other.constraints;
+    }
 
     @Override
     public List<APIDifference> getDiffs(APIElement other) {

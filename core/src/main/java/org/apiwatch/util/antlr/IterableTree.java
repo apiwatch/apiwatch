@@ -11,7 +11,6 @@ import java.util.Iterator;
 
 import org.antlr.runtime.Token;
 import org.antlr.runtime.tree.CommonTree;
-import org.antlr.runtime.tree.CommonTreeAdaptor;
 import org.antlr.runtime.tree.Tree;
 
 public class IterableTree extends CommonTree implements Iterable<IterableTree> {
@@ -35,6 +34,16 @@ public class IterableTree extends CommonTree implements Iterable<IterableTree> {
             }
         }
         return null;
+    }
+    
+    public int getChildCount(int type) {
+        int count = 0;
+        for (IterableTree child : this) {
+            if (child.getType() == type) {
+                count += 1;
+            }
+        }
+        return count;
     }
 
     @Override
@@ -73,15 +82,6 @@ public class IterableTree extends CommonTree implements Iterable<IterableTree> {
             throw new UnsupportedOperationException();
         }
 
-    }
-
-    public static class Adaptor extends CommonTreeAdaptor {
-        
-        @Override
-        public Object create(Token payload) {
-            return new IterableTree(payload);
-        }        
-        
     }
 
 }

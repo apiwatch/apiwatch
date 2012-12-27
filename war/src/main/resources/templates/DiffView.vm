@@ -10,6 +10,19 @@
 <html>
 <head>
 #parse( "/templates/parts/header.part" )
+<script type="text/javascript" src="/js/jquery.dataTables.js"></script>
+<script type="text/javascript" src="/js/dataTables.bootstrap.js"></script>
+<link rel="stylesheet" href="/css/dataTables.bootstrap.css" type="text/css" />
+<style type="text/css">
+.severity-INFO { color: green; }
+.severity-MINOR { color: green; font-weight: bold; }
+.severity-MAJOR { color: orange; }
+.severity-CRITICAL { color: red;  }
+.severity-BLOCKER { color: red;  font-weight: bold;}
+.monospace { font-family: monospace; }
+.small-text { font-size: 80%; }
+.faded { color: gray; }
+</style>
 </head>
 <body>
 #set( $menu = "diff" )
@@ -20,59 +33,116 @@
     </div>
     
     <h3>API Stability Violations</h3>
-    
-    <table class="table table-bordered table-condensed table-hover table-striped">
+    <table id="violations-table" class="table table-bordered table-condensed table-hover table-striped">
         <thead>
             <tr>
                 <th>Severity</th>
                 <th>API Stability Rule</th>
-                <th>Location</th>
                 <th>Element</th>
-                <th>Visibility</th>
+                <th>Location</th>
                 <th>Details</th>
             </tr>
         </thead>
         <tbody>
 #if( $violations.size() > 0 )
 #foreach( $vio in $violations )
-            <tr class="severity-$vio.Severity">
-                <td> $vio.Severity </td>
-                <td> $vio.Rule.name() [$vio.Rule.id()] </td>
-                <td> $vio.Difference.element().SourceFile </td>
-                <td> $vio.Difference.element().ident() </td>
-                <td> $vio.Difference.element().Visibility </td>
+#set( $visibility = $vio.Difference.element().Visibility.toString() )
+#set( $ident = $vio.Difference.element().ident() )
+#set( $type = $ident.split(":")[0] )
+#set( $ident = $ident.split(":")[1] )
+#set( $icon = $type.toLowerCase() + "-" + $visibility.toLowerCase() + ".gif" )
+#set( $file = $vio.Difference.element().SourceFile )
+#set( $line = $file.split(":")[1] )
+#set( $file = $file.split(":")[0] )
+            <tr>
+                <td class="severity-$vio.Severity"> $vio.Severity </td>
+                <td title="$vio.Rule.id()">$vio.Rule.name()</td>
+                <td class="monospace"><img src="/img/$icon" title="$visibility $type" />
+                    $pretty.prettyPrint($ident)
+                </td>
+                <td class="monospace small-text"><span>$file</span> <span class="faded">$line</span></td>
                 <td> 
-                    <button class="btn btn-small" title="Show details" data-toggle="modal" data-target="#details-$velocityCount">
+#if( $vio.Difference.ChangeType == $ADDED || $vio.Difference.ChangeType == $REMOVED )
+                    <button class="btn btn-small" disabled="disabled">
                         <i class="icon-search"></i>
-                    </button> 
+                    </button>
+#else
+                    <button class="btn btn-small" title="Show details" 
+                            data-toggle="modal" data-target="#details-$velocityCount">
+                        <i class="icon-search"></i>
+                    </button>
                     <div class="modal" id="details-$velocityCount" style="display: none;">
                         <div class="modal-header">
                             <a class="close" data-dismiss="modal">&times;</a>
-                            <h3>$vio.Rule.name() <small>Violation details</small></h3>
-                            <span>$vio.Difference.element().SourceFile</span>
-                            <span>$vio.Difference.element().ident()</span>
+                            <h3>$vio.Rule.name() <small><span class="severity-$vio.Severity">$vio.Severity</span> violation</small></h3>
+                            <dl class="small-text">
+                                <dt>Element</dt>
+                                <dd><img src="/img/$icon" title="$visibility $type" /><span class="monospace">$pretty.prettyPrint($ident)</span></dd>
+                                <dt>Location</dt>
+                                <dd class="monospace"><span>$file</span> <span class="faded">$line</span></dd>
+                            </dl>
                         </div>
                         <div class="modal-body">
                             <div>
                                 <h4>$versionA</h4>
-                                $vio.Difference.ValueA
+                                <span class="monospace">
+                                    $pretty.prettyPrint($vio.Difference.ValueA)
+                                </span>
                             </div>
                             <div>
                                 <h4>$versionB</h4>
-                                $vio.Difference.ValueB
+                                <span class="monospace">
+                                    $pretty.prettyPrint($vio.Difference.ValueB)
+                                </span>
                             </div>
                         </div>
                     </div>
+#end
                 </td>
             </tr>
-
 #end
 #else
             <tr><td colspan="5">No violations!</td></tr>
 #end
         </tbody>
     </table>
+    
 </div>
 #parse( "/templates/parts/footer.part" )
+<script type="text/javascript">
+jQuery.extend( jQuery.fn.dataTableExt.oSort, {
+    "severity-pre": function ( a ) {
+        switch( a ) {
+            case "BLOCKER":   return 1;
+            case "CRITICAL": return 2;
+            case "MAJOR":    return 3;
+            case "MINOR":    return 4;
+            case "INFO":    return 5;
+            default:       return 6;
+        }
+    },
+    "severity-asc": function ( a, b ) {
+        return ((a < b) ? -1 : ((a > b) ? 1 : 0));
+    },
+    "severity-desc": function ( a, b ) {
+        return ((a < b) ? 1 : ((a > b) ? -1 : 0));
+    }
+} );
+$(document).ready(function () {
+	$('#violations-table').dataTable({
+		sPaginationType: "bootstrap",
+		iDisplayLength: 25,
+		sDom: '<"row"<"span5"l><"span7"p>>rt<"row"<"span5"i><"span7"p>>',
+		bAutoWidth: false,
+		aoColumns: [
+		    {'sType': 'severity', 'bSortable': true},
+		    {'sType': 'string', 'bSortable': true},
+		    {'sType': 'html', 'bSortable': true},
+		    {'sType': 'html', 'bSortable': true},
+		    {'sType': 'html', 'bSortable': false},
+		],
+	});
+});
+</script>
 </body>
 </html>

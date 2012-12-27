@@ -20,8 +20,10 @@ import org.apiwatch.diff.RulesFinder;
 import org.apiwatch.diff.ViolationsCalculator;
 import org.apiwatch.models.APIDifference;
 import org.apiwatch.models.APIScope;
+import org.apiwatch.models.ChangeType;
 import org.apiwatch.models.Severity;
 import org.apiwatch.server.models.Version;
+import org.apiwatch.util.PrettyPrinter;
 import org.apiwatch.util.errors.Http404;
 import org.apiwatch.util.errors.SerializationError;
 
@@ -67,6 +69,9 @@ public class DiffView extends View {
             context.put("versionB", verB);
             context.put("violations", calc.getViolations(diffs, threshold));
             context.put("Severity", Severity.class);
+            context.put("ADDED", ChangeType.ADDED);
+            context.put("REMOVED", ChangeType.REMOVED);
+            context.put("pretty", new PrettyPrinter());
             
             renderToTemplate(context);
         } catch (SQLException e) {

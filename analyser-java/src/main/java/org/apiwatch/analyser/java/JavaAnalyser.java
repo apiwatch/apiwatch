@@ -16,6 +16,7 @@ import org.antlr.runtime.RecognitionException;
 import org.apiwatch.analyser.LanguageAnalyser;
 import org.apiwatch.models.APIScope;
 import org.apiwatch.util.antlr.IterableTree;
+import org.apiwatch.util.antlr.IterableTreeAdaptor;
 import org.apiwatch.util.errors.ParseError;
 
 public class JavaAnalyser implements LanguageAnalyser {
@@ -52,7 +53,7 @@ public class JavaAnalyser implements LanguageAnalyser {
 
         JavaLexer lexer = new JavaLexer(new ANTLRFileStream(sourceFile, encoding));
         JavaParser parser = new JavaParser(new CommonTokenStream(lexer));
-        parser.setTreeAdaptor(new IterableTree.Adaptor());
+        parser.setTreeAdaptor(new IterableTreeAdaptor());
         JavaTreeWalker walker = new JavaTreeWalker(language(), sourceFile);
         
         try {

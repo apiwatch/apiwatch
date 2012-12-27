@@ -78,7 +78,7 @@ public class JavaTreeWalker extends APITreeWalker {
             break;
 
         case JavaParser.FORMAL_PARAM_VARARG_DECL:
-            ((Function) scopeStack.peek()).hasVarArgs = true;
+            ((Function) apiStack.peek()).hasVarArgs = true;
             /* fallback to next case option */
         case JavaParser.FORMAL_PARAM_STD_DECL:
             __argument(ast);
@@ -106,17 +106,17 @@ public class JavaTreeWalker extends APITreeWalker {
         }
 
         APIScope packageScope = new APIScope(packageName, language, _source(ast), Visibility.PUBLIC,
-                scopeStack.peek(), null, null, null);
-        ((APIScope) scopeStack.peek()).subScopes.add(packageScope);
+                apiStack.peek(), null, null, null);
+        ((APIScope) apiStack.peek()).subScopes.add(packageScope);
 
-        scopeStack.push(packageScope);
+        apiStack.push(packageScope);
         walkChildren(ast, JavaParser.IMPORT);
 
         /* only one of these three will actually be walked */
         walk(ast.firstChildOfType(JavaParser.CLASS));
         walk(ast.firstChildOfType(JavaParser.INTERFACE));
         walk(ast.firstChildOfType(JavaParser.ENUM));
-        scopeStack.pop();
+        apiStack.pop();
     }
 
     /**
@@ -126,7 +126,7 @@ public class JavaTreeWalker extends APITreeWalker {
         for (IterableTree node : ast) {
             if (node.getType() != JavaParser.STATIC) {
                 String importName = _dottedName(node);
-                ((APIScope) scopeStack.peek()).dependencies.add(importName);
+                ((APIScope) apiStack.peek()).dependencies.add(importName);
                 return;
             }
         }
@@ -150,15 +150,15 @@ public class JavaTreeWalker extends APITreeWalker {
         }
 
         ComplexType complexType = new ComplexType(name, language, _source(ast), visibility,
-                scopeStack.peek(), modifiers, null, null);
+                apiStack.peek(), modifiers, null, null);
 
-        if (scopeStack.peek() instanceof ComplexType) {
-            ((ComplexType) scopeStack.peek()).symbols.add(complexType);
-        } else if (scopeStack.peek() instanceof APIScope) {
-            ((APIScope) scopeStack.peek()).symbols.add(complexType);
+        if (apiStack.peek() instanceof ComplexType) {
+            ((ComplexType) apiStack.peek()).symbols.add(complexType);
+        } else if (apiStack.peek() instanceof APIScope) {
+            ((APIScope) apiStack.peek()).symbols.add(complexType);
         }
 
-        scopeStack.push(complexType);
+        apiStack.push(complexType);
         walk(ast.firstChildOfType(JavaParser.EXTENDS_CLAUSE));
         walk(ast.firstChildOfType(JavaParser.IMPLEMENTS_CLAUSE));
 
@@ -166,7 +166,7 @@ public class JavaTreeWalker extends APITreeWalker {
         walk(ast.firstChildOfType(JavaParser.CLASS_TOP_LEVEL_SCOPE));
         walk(ast.firstChildOfType(JavaParser.INTERFACE_TOP_LEVEL_SCOPE));
         walk(ast.firstChildOfType(JavaParser.ENUM_TOP_LEVEL_SCOPE));
-        scopeStack.pop();
+        apiStack.pop();
     }
 
     /**
@@ -174,7 +174,7 @@ public class JavaTreeWalker extends APITreeWalker {
      */
     private void __extends(IterableTree ast) {
         for (IterableTree child : ast) {
-            ((ComplexType) scopeStack.peek()).superTypes.add(_typeName(child));
+            ((ComplexType) apiStack.peek()).superTypes.add(_typeName(child));
         }
     }
 
@@ -191,8 +191,8 @@ public class JavaTreeWalker extends APITreeWalker {
         for (IterableTree varDecl : ast.firstChildOfType(JavaParser.VAR_DECLARATOR_LIST)) {
             String varName = varDecl.firstChildOfType(JavaParser.IDENT).getText();
             Variable var = new Variable(varName, language, _source(ast), visibility,
-                    scopeStack.peek(), modifiers, type, null);
-            ((ComplexType) scopeStack.peek()).symbols.add(var);
+                    apiStack.peek(), modifiers, type, null);
+            ((ComplexType) apiStack.peek()).symbols.add(var);
         }
     }
 
@@ -210,18 +210,18 @@ public class JavaTreeWalker extends APITreeWalker {
             name = funcNameAst.getText();
         } else {
             /* constructor nodes do not have a IDENT child, we take the name of the parent class */
-            name = scopeStack.peek().name;
+            name = apiStack.peek().name;
         }
         String returnType = _typeName(ast.firstChildOfType(JavaParser.TYPE));
 
-        Function func = new Function(name, language, _source(ast), visibility, scopeStack.peek(),
+        Function func = new Function(name, language, _source(ast), visibility, apiStack.peek(),
                 modifiers, returnType, null, false, null);
-        ((ComplexType) scopeStack.peek()).symbols.add(func);
+        ((ComplexType) apiStack.peek()).symbols.add(func);
 
-        scopeStack.push(func);
+        apiStack.push(func);
         walkChildren(ast, JavaParser.FORMAL_PARAM_LIST);
         walkChildren(ast, JavaParser.THROWS_CLAUSE);
-        scopeStack.pop();
+        apiStack.pop();
     }
 
     /**
@@ -233,16 +233,16 @@ public class JavaTreeWalker extends APITreeWalker {
         String name = ast.firstChildOfType(JavaParser.IDENT).getText();
 
         Variable arg = new Variable(name, language, _source(ast), Visibility.SCOPE,
-                scopeStack.peek(), modifiers, type, null);
+                apiStack.peek(), modifiers, type, null);
 
-        ((Function) scopeStack.peek()).arguments.add(arg);
+        ((Function) apiStack.peek()).arguments.add(arg);
     }
 
     private void __exceptions(IterableTree ast) {
         for (IterableTree child : ast) {
             /* java forbids generics on exceptions, we can do this safely. */
             String exceptionClass = _dottedName(child);
-            ((Function) scopeStack.peek()).exceptions.add(exceptionClass);
+            ((Function) apiStack.peek()).exceptions.add(exceptionClass);
         }
     }
 
