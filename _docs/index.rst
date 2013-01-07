@@ -1,18 +1,22 @@
 
-=======================================
-Surveillance des interfaces logicielles
-=======================================
+===============================================
+APIWatch: Software Interfaces Surveillance Tool
+===============================================
 
+
+
+Downloads
+=========
+
+*  `latest APIWatch binary package<>`
+
+
+
+Documentation
+=============
 
 .. toctree::
    :maxdepth: 2
 
-   remerciements
-   introduction
-   
-   notions/index
-   problematique/index
-   solution/index
-   
-   conclusion
-   
+   user/index
+   developer/index
