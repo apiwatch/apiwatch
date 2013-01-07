@@ -10,3 +10,5 @@ target
 *.jar
 *~
 .pydevproject
+
+/apiwatch-1.0-SNAPSHOT

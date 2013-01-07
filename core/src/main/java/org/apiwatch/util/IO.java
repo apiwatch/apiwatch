@@ -20,7 +20,7 @@ public class IO {
     
     public static String readToString(Reader reader) throws IOException {
         int n;
-        char[] buffer = new char[4096];
+        char[] buffer = new char[32768];
         StringWriter writer = new StringWriter();
         while ((n = reader.read(buffer)) != -1) {
             writer.write(buffer, 0, n);

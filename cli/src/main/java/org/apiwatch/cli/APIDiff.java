@@ -20,7 +20,7 @@ import net.sourceforge.argparse4j.inf.Namespace;
 import org.apache.http.HttpException;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-import org.apiwatch.cli.ArgsUtil.AuthFileReader;
+import org.apiwatch.analyser.Analyser;
 import org.apiwatch.diff.DifferencesCalculator;
 import org.apiwatch.diff.RulesFinder;
 import org.apiwatch.diff.ViolationsCalculator;
@@ -29,35 +29,36 @@ import org.apiwatch.models.APIScope;
 import org.apiwatch.models.APIStabilityViolation;
 import org.apiwatch.models.Severity;
 import org.apiwatch.serialization.Serializers;
+import org.apiwatch.util.IO;
 import org.apiwatch.util.Logging;
 
 public class APIDiff {
 
-    public static final String DESCRIPTION = ArgsUtil.VERSION_NAME + "\n\n" +
-            "Calculate the API differences between 2 versions of a software component." +
-            "Then, process these differences through stability rules to check for API stability " +
-            "violations.";
+    public static final String DESCRIPTION = Args.VERSION_NAME + "\n\n"
+            + "Calculate the API differences between 2 versions of a software component."
+            + "Then, process these differences through stability rules to check for API stability "
+            + "violations.";
 
     public static void main(String[] argv) {
         try {
             Namespace args = parseArgs(argv);
-            
+
             Logger log = Logger.getLogger(APIDiff.class.getName());
-            
+
             @SuppressWarnings("unchecked")
             Map<String, Map<String, String>> rulesConfig = (Map<String, Map<String, String>>) args
-                    .get("rules_config");
+                    .get(Args.RULES_CONFIG_OPTION);
             if (rulesConfig != null) {
                 RulesFinder.configureRules(rulesConfig);
             }
-            
+
             log.trace("Deserializing API data...");
-            APIScope scopeA = ArgsUtil.getAPIData(args.getString("component_a"),
-                    args.getString("encoding"), args.getString("username"),
-                    args.getString("password"));
-            APIScope scopeB = ArgsUtil.getAPIData(args.getString("component_b"),
-                    args.getString("encoding"), args.getString("username"),
-                    args.getString("password"));
+            APIScope scopeA = IO.getAPIData(args.getString(COMPONENT_A),
+                    args.getString(Analyser.ENCODING_OPTION), args.getString(Args.USERNAME_OPTION),
+                    args.getString(Args.PASSWORD_OPTION));
+            APIScope scopeB = IO.getAPIData(args.getString(COMPONENT_B),
+                    args.getString(Analyser.ENCODING_OPTION), args.getString(Args.USERNAME_OPTION),
+                    args.getString(Args.PASSWORD_OPTION));
 
             log.trace("Calculation of differences...");
             List<APIDifference> diffs = DifferencesCalculator.getDiffs(scopeA, scopeB);
@@ -66,11 +67,11 @@ public class APIDiff {
             ViolationsCalculator violationsClac = new ViolationsCalculator(RulesFinder.rules()
                     .values());
 
-            Severity threshold = (Severity) args.get("severity_threshold");
+            Severity threshold = (Severity) args.get(Args.SEVERITY_THRESHOLD_OPTION);
             List<APIStabilityViolation> violations = violationsClac.getViolations(diffs, threshold);
 
             OutputStreamWriter writer = new OutputStreamWriter(System.out);
-            Serializers.dumpViolations(violations, writer, args.getString("format"));
+            Serializers.dumpViolations(violations, writer, args.getString(Args.FORMAT_OPTION));
             writer.flush();
             writer.close();
         } catch (HttpException e) {
@@ -82,59 +83,32 @@ public class APIDiff {
         }
 
     }
-    
+
+    private static final String COMPONENT_B = "component_b";
+    private static final String COMPONENT_A = "component_a";
+
     private static Namespace parseArgs(String[] argv) {
         Logging.configureLogging();
-        
-        String prog = APIDiff.class.getSimpleName().toLowerCase();
-        ArgumentParser cli = ArgumentParsers.newArgumentParser(prog)
-                .description(DESCRIPTION)
-                .version(ArgsUtil.VERSION);
 
-        cli.addArgument("component_a")
+        String prog = APIDiff.class.getSimpleName().toLowerCase();
+        ArgumentParser cli = ArgumentParsers.newArgumentParser(prog).description(DESCRIPTION)
+                .version(Args.VERSION);
+
+        cli.addArgument(COMPONENT_A)
                 .help("API data of the first version of the component (file or URL)")
                 .metavar("COMPONENT_A");
-        cli.addArgument("component_b")
+        cli.addArgument(COMPONENT_B)
                 .help("API data of the second version of the component (file or URL)")
                 .metavar("COMPONENT_B");
-        
+        Args.verbosity(cli);
+
         ArgumentGroup inputGroup = cli.addArgumentGroup("Input options");
-        inputGroup.addArgument("-e", "--encoding")
-                .help("Source files encoding (default: UTF-8)")
-                .dest("encoding")
-                .setDefault("UTF-8");
-        AuthFileReader auth = new AuthFileReader();
-        inputGroup.addArgument("-u", "--server-user")
-                .help("Username for HTTP authentication (by default read from ~/.apiwatchrc)")
-                .setDefault(auth.username)
-                .dest("username");
-        inputGroup.addArgument("-p", "--server-password")
-                .help("User password for HTTP authentication (by default read from ~/.apiwatchrc)")
-                .setDefault(auth.password)
-                .dest("password");
-        
+        Args.httpAuth(inputGroup);
+
         ArgumentGroup outputGroup = cli.addArgumentGroup("Output options");
-        outputGroup.addArgument("-v", "--verbosity")
-                .help("Display logging events starting from this level (default: INFO)")
-                .dest("verbosity")
-                .setDefault(Level.INFO)
-                .choices(ArgsUtil.LOG_LEVELS)
-                .type(new ArgsUtil.LogLevelArgument());
-        outputGroup.addArgument("-f", "--format")
-                .help("Output format for API stability violations (default: text)")
-                .dest("format")
-                .setDefault("text")
-                .choices(Serializers.availableFormats(APIStabilityViolation.class));
-        outputGroup.addArgument("-r", "--rules-config")
-                .help("API stability rules configuration file")
-                .dest("rules_config")
-                .type(new ArgsUtil.IniFileArgument());
-        outputGroup.addArgument("-s", "--severity-threshold")
-                .help("Exclude all API stablity violations below this severity level")
-                .dest("severity_threshold")
-                .setDefault(Severity.MINOR)
-                .choices(Severity.values())
-                .type(new ArgsUtil.SeverityArgument());
+        Args.format(outputGroup, "text");
+        Args.rulesConfig(outputGroup);
+        Args.severityThreshold(outputGroup);
 
         Namespace args = null;
         try {
@@ -144,10 +118,10 @@ public class APIDiff {
             System.err.println("use `-h/--help` for syntax");
             System.exit(1);
         }
-        
-        Logging.configureLogging((Level) args.get("verbosity"));
-        
+
+        Logging.configureLogging((Level) args.get(Args.VERBOSITY_OPTION));
+
         return args;
     }
-    
+
 }

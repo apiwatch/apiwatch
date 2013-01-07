@@ -28,7 +28,7 @@ public abstract class APIElement {
         this.name = name;
         this.language = language;
         this.sourceFile = sourceFile;
-        this.visibility = visibility;
+        this.visibility = visibility != null ? visibility : Visibility.SCOPE;
         this.parent = parent;
     }
 

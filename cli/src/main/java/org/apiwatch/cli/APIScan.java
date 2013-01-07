@@ -20,41 +20,41 @@ import org.apache.http.HttpException;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apiwatch.analyser.Analyser;
-import org.apiwatch.cli.ArgsUtil.AuthFileReader;
 import org.apiwatch.models.APIScope;
 import org.apiwatch.serialization.Serializers;
 import org.apiwatch.util.DirectoryWalker;
+import org.apiwatch.util.IO;
 import org.apiwatch.util.Logging;
-
 
 public class APIScan {
 
-    public static final String DESCRIPTION = ArgsUtil.VERSION_NAME + "\n\n" +
-    		"Analyse source code and extract API information from it. The API data can then " +
-    		"be exported to a file or directly uploaded to an APIWATCH server instance.";
-    public static final String EPILOG = "You may have to add -- before the positional arguments " +
-    		"to separate them from the -i and -x options."; 
-    
+    private static final String INPUT_PATHS = "input_paths";
+    private static final String OUTPUT_LOCATION = "output_location";
+    public static final String DESCRIPTION = Args.VERSION_NAME + "\n\n"
+            + "Analyse source code and extract API information from it. The API data can then "
+            + "be exported to a file or directly uploaded to an APIWATCH server instance.";
+
     public static void main(String[] argv) {
         try {
             Namespace args = parseArgs(argv);
-            
+
             Logger log = Logger.getLogger(APIDiff.class.getName());
-            
+
             log.trace("Finding files to analyse...");
-            DirectoryWalker walker = new DirectoryWalker(args.<String> getList("excludes"),
-                    args.<String> getList("includes"));
-            
-            Set<String> files = walker.walk(args.<String>getList("input_paths"));
+            DirectoryWalker walker = new DirectoryWalker(
+                    args.<String> getList(Args.EXCLUDES_OPTION),
+                    args.<String> getList(Args.INCLUDES_OPTION));
+
+            Set<String> files = walker.walk(args.<String> getList(INPUT_PATHS));
             APIScope scope = Analyser.analyse(files, args.getAttrs());
-            
-            if (args.get("output_location") != null) {
-                ArgsUtil.putAPIData(scope, args.getString("format"), args.getString("encoding"),
-                        args.getString("output_location"), args.getString("username"),
-                        args.getString("password"));
+
+            if (args.get(OUTPUT_LOCATION) != null) {
+                IO.putAPIData(scope, args.getString(Args.FORMAT_OPTION),
+                        args.getString(Analyser.ENCODING_OPTION), args.getString(OUTPUT_LOCATION),
+                        args.getString(Args.USERNAME_OPTION), args.getString(Args.PASSWORD_OPTION));
             } else {
                 OutputStreamWriter writer = new OutputStreamWriter(System.out);
-                Serializers.dumpAPIScope(scope, writer, args.getString("format"));
+                Serializers.dumpAPIScope(scope, writer, args.getString(Args.FORMAT_OPTION));
                 writer.flush();
                 writer.close();
             }
@@ -69,70 +69,35 @@ public class APIScan {
 
     private static Namespace parseArgs(String[] argv) {
         Logging.configureLogging();
-        
-        String prog = APIScan.class.getSimpleName().toLowerCase();
-        ArgumentParser cli = ArgumentParsers.newArgumentParser(prog)
-                .description(DESCRIPTION)
-                .epilog(EPILOG)
-                .version(ArgsUtil.VERSION);
-        
-        cli.addArgument("input_paths")
-                .help("Input file/directory to be analysed")
-                .metavar("FILE_OR_DIR")
-                .nargs("+");
 
-        cli.addArgument("-l", "--list-languages")
-                .help("List supported languages and their default associated file extensions")
-                .action(new ArgsUtil.ListLanguagesAction());
-        cli.addArgument("-j", "--jobs")
-                .help("Number of parallel jobs (default: nbCPU)")
-                .dest("jobs")
-                .setDefault(Runtime.getRuntime().availableProcessors())
-                .type(new ArgsUtil.IntegerArgument());
-        
+        String prog = APIScan.class.getSimpleName().toLowerCase();
+        ArgumentParser cli = ArgumentParsers.newArgumentParser(prog).description(DESCRIPTION)
+                .epilog(Args.EPILOG).version(Args.VERSION);
+
+        cli.addArgument(INPUT_PATHS).help("Input file/directory to be analysed")
+                .metavar("FILE_OR_DIR").nargs("+");
+
+        Args.listLanguages(cli);
+        Args.jobs(cli);
+
         ArgumentGroup inputGroup = cli.addArgumentGroup("Input options");
-        inputGroup.addArgument("-e", "--encoding")
-                .help("Source files encoding (default: UTF-8)")
-                .dest("encoding")
-                .setDefault("UTF-8");
-        inputGroup.addArgument("-x", "--exclude")
-                .help("Exclude from analysis")
-                .dest("excludes")
-                .metavar("PATTERN")
-                .nargs("+");
-        inputGroup.addArgument("-i", "--include")
-                .help("Only include in analysis")
-                .dest("includes")
-                .metavar("PATTERN")
-                .nargs("+");
-        
+        Args.encoding(inputGroup);
+        Args.excludes(inputGroup);
+        Args.includes(inputGroup);
+        Args.languageExtensions(inputGroup);
+
         ArgumentGroup outputGroup = cli.addArgumentGroup("Output options");
-        cli.addArgument("-v", "--verbosity")
-                .help("Display logging events starting from this level (default: INFO)")
-                .dest("verbosity")
-                .setDefault(Level.INFO)
-                .choices(ArgsUtil.LOG_LEVELS)
-                .type(new ArgsUtil.LogLevelArgument());
-        outputGroup.addArgument("-f", "--format")
-                .help("API data output format (default: json)")
-                .dest("format")
-                .setDefault("json")
-                .choices(Serializers.availableFormats(APIScope.class));
-        outputGroup.addArgument("-o", "--output-location")
-                .help("Write analysed API data to this location. Local file paths and URLs are " +
-                	  "accepted (If the location is a directory, it will be created if necessary " +
-                	  "and the data will be written to a 'api.<format>' file). By default, the " +
-                	  "API data is displayed on the standard output.")
-                .dest("output_location");
-        AuthFileReader auth = new AuthFileReader();
-        outputGroup.addArgument("-u", "--server-user")
-                .help("Username for HTTP authentication (by default read from ~/.apiwatchrc)")
-                .setDefault(auth.username)
-                .dest("username");
-        outputGroup.addArgument("-p", "--server-password")
-                .help("User password for HTTP authentication (by default read from ~/.apiwatchrc)")
-                .setDefault(auth.password)
-                .dest("password");
+        Args.format(outputGroup, "json");
+        outputGroup
+                .addArgument("-o", "--output-location")
+                .dest(OUTPUT_LOCATION)
+                .help("Write analysed API data to this location. Local file paths and URLs are "
+                        + "accepted (If the location is a directory, it will be created if necessary "
+                        + "and the data will be written to a 'api.<format>' file). By default, the "
+                        + "API data is displayed on the standard output.");
+        Args.httpAuth(outputGroup);
+
+        Args.analysersOptions(cli);
 
         Namespace args = null;
         try {
@@ -142,12 +107,10 @@ public class APIScan {
             System.err.println("use `-h/--help` for syntax");
             System.exit(1);
         }
-        
-        Logging.configureLogging((Level) args.get("verbosity"));
-        
+
+        Logging.configureLogging((Level) args.get(Args.VERBOSITY_OPTION));
+
         return args;
     }
 
-    
-    
 }

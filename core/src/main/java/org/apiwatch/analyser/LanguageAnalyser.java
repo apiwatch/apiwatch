@@ -18,7 +18,8 @@ public interface LanguageAnalyser {
     
     String[] fileExtensions();
     String language();
+    Option[] options();
     
-    APIScope analyse(String sourceFile) throws IOException, ParseError;
     APIScope analyse(String sourceFile, Map<String, Object> options) throws IOException, ParseError;
+    
 }

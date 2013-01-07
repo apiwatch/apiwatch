@@ -25,6 +25,11 @@ import org.apiwatch.models.APIScope;
 
 public class Analyser {
 
+    public static final String JOBS_OPTION = "jobs";
+    public static final String ENCODING_OPTION = "encoding";
+    public static final String EXTENSIONS_OPTION = "extensions";
+    public static final String DEFAULT_ENCODING = "UTF-8";
+    
     static Logger LOGGER = Logger.getLogger(Analyser.class.getName());
     static Map<String, LanguageAnalyser> ANALYSERS_BY_FILEEXT = new HashMap<String, LanguageAnalyser>();
     static Map<String, LanguageAnalyser> ANALYSERS_BY_LANGUAGE = new HashMap<String, LanguageAnalyser>();
@@ -41,15 +46,22 @@ public class Analyser {
         }
     }
 
-    public static LanguageAnalyser getAnalyser(String fileName) {
+    public static LanguageAnalyser getAnalyser(String fileName, Map<String, String> extensions) {
         if (fileName == null) {
             throw new IllegalArgumentException("fileName cannot be 'null'.");
         }
         String fileExt = fileName.substring(fileName.lastIndexOf('.') + 1).toLowerCase();
+        if (extensions != null) {
+            String language = extensions.get(fileExt);
+            if (language != null) {
+                return ANALYSERS_BY_LANGUAGE.get(language);
+            }
+        }
         return ANALYSERS_BY_FILEEXT.get(fileExt);
     }
 
     public static Map<String, LanguageAnalyser> getAllAnalysers() {
+        discoverAnalysers();
         return ANALYSERS_BY_LANGUAGE;
     }
 
@@ -58,8 +70,8 @@ public class Analyser {
     {
         discoverAnalysers();
         int jobs;
-        if (options != null && options.containsKey("jobs")) {
-            jobs = (Integer) options.get("jobs");
+        if (options != null && options.containsKey(JOBS_OPTION)) {
+            jobs = (Integer) options.get(JOBS_OPTION);
         } else {
             jobs = Runtime.getRuntime().availableProcessors();
         }
@@ -94,7 +106,9 @@ public class Analyser {
         Deque<String> filesQueue;
         BlockingQueue<APIScope> scopesQueue;
         Map<String, Object> options;
+        Map<String, String> extensions;
 
+        @SuppressWarnings("unchecked")
         public Worker(Deque<String> filesQueue, BlockingQueue<APIScope> scopesQueue,
                 Map<String, Object> options)
         {
@@ -102,6 +116,7 @@ public class Analyser {
             this.filesQueue = filesQueue;
             this.scopesQueue = scopesQueue;
             this.options = options;
+            this.extensions = (Map<String, String>) options.get(EXTENSIONS_OPTION);
         }
 
         @Override
@@ -109,7 +124,7 @@ public class Analyser {
             while (!filesQueue.isEmpty()) {
                 try {
                     String file = filesQueue.remove();
-                    LanguageAnalyser analyser = getAnalyser(file);
+                    LanguageAnalyser analyser = getAnalyser(file, extensions);
                     if (analyser != null) {
                         LOGGER.trace(String.format("Analysing '%s'...", file));
                         APIScope apiScope = analyser.analyse(file, options);
