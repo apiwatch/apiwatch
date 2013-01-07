@@ -144,8 +144,15 @@ private boolean isTypeName(String name) {
     }
     return false;
 }
-    
-    
+
+public void displayRecognitionError(String[] tokenNames, RecognitionException e) {
+    String hdr = getSourceFile(e.token.getLine());
+    if ("".equals(hdr)) {
+        hdr = getErrorHeader(e);
+    }
+    String msg = getErrorMessage(e, tokenNames);
+    emitErrorMessage(hdr+" "+msg);
+}
 
 }
 
