@@ -54,9 +54,11 @@ public class APIDiff {
 
             log.trace("Deserializing API data...");
             APIScope scopeA = IO.getAPIData(args.getString(COMPONENT_A),
+                    args.getString(Args.INPUT_FORMAT_OPTION),
                     args.getString(Analyser.ENCODING_OPTION), args.getString(Args.USERNAME_OPTION),
                     args.getString(Args.PASSWORD_OPTION));
             APIScope scopeB = IO.getAPIData(args.getString(COMPONENT_B),
+                    args.getString(Args.INPUT_FORMAT_OPTION),
                     args.getString(Analyser.ENCODING_OPTION), args.getString(Args.USERNAME_OPTION),
                     args.getString(Args.PASSWORD_OPTION));
 
@@ -71,7 +73,8 @@ public class APIDiff {
             List<APIStabilityViolation> violations = violationsClac.getViolations(diffs, threshold);
 
             OutputStreamWriter writer = new OutputStreamWriter(System.out);
-            Serializers.dumpViolations(violations, writer, args.getString(Args.FORMAT_OPTION));
+            Serializers.dumpViolations(violations, writer,
+                    args.getString(Args.OUTPUT_FORMAT_OPTION));
             writer.flush();
             writer.close();
         } catch (HttpException e) {
@@ -103,10 +106,12 @@ public class APIDiff {
         Args.verbosity(cli);
 
         ArgumentGroup inputGroup = cli.addArgumentGroup("Input options");
+        Args.inputFormat(inputGroup, APIScope.class, null);
+        Args.encoding(inputGroup);
         Args.httpAuth(inputGroup);
 
         ArgumentGroup outputGroup = cli.addArgumentGroup("Output options");
-        Args.format(outputGroup, "text");
+        Args.outputFormat(outputGroup, APIStabilityViolation.class, "text");
         Args.rulesConfig(outputGroup);
         Args.severityThreshold(outputGroup);
 
@@ -114,8 +119,7 @@ public class APIDiff {
         try {
             args = cli.parseArgs(argv);
         } catch (ArgumentParserException e) {
-            System.err.println("error: " + e.getMessage());
-            System.err.println("use `-h/--help` for syntax");
+            Args.reportArgumentError(e, System.err);
             System.exit(1);
         }
 

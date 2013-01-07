@@ -56,6 +56,7 @@ public class APIWatch {
             }
 
             APIScope referenceScope = IO.getAPIData(args.getString(REFERENCE_API_DATA),
+                    args.getString(Args.INPUT_FORMAT_OPTION),
                     args.getString(Analyser.ENCODING_OPTION), args.getString(Args.USERNAME_OPTION),
                     args.getString(Args.PASSWORD_OPTION));
 
@@ -77,7 +78,8 @@ public class APIWatch {
             List<APIStabilityViolation> violations = violationsClac.getViolations(diffs, threshold);
 
             OutputStreamWriter writer = new OutputStreamWriter(System.out);
-            Serializers.dumpViolations(violations, writer, args.getString(Args.FORMAT_OPTION));
+            Serializers.dumpViolations(violations, writer,
+                    args.getString(Args.OUTPUT_FORMAT_OPTION));
             writer.flush();
             writer.close();
 
@@ -111,14 +113,15 @@ public class APIWatch {
         Args.verbosity(cli);
 
         ArgumentGroup inputGroup = cli.addArgumentGroup("Input options");
-        Args.encoding(inputGroup);
+        Args.languageExtensions(inputGroup);
         Args.excludes(inputGroup);
         Args.includes(inputGroup);
-        Args.languageExtensions(inputGroup);
+        Args.inputFormat(inputGroup, APIScope.class, null);
+        Args.encoding(inputGroup);
         Args.httpAuth(inputGroup);
 
         ArgumentGroup outputGroup = cli.addArgumentGroup("Output options");
-        Args.format(outputGroup, "text");
+        Args.outputFormat(outputGroup, APIStabilityViolation.class, "text");
         Args.rulesConfig(outputGroup);
         Args.severityThreshold(outputGroup);
 
@@ -128,8 +131,7 @@ public class APIWatch {
         try {
             args = cli.parseArgs(argv);
         } catch (ArgumentParserException e) {
-            System.err.println("error: " + e.getMessage());
-            System.err.println("use `-h/--help` for syntax");
+            Args.reportArgumentError(e, System.err);
             System.exit(1);
         }
 

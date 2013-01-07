@@ -59,11 +59,19 @@ public class IO {
     public static APIScope getAPIData(String source, String encoding, String username,
             String password) throws IOException, SerializationError, HttpException
     {
+        return getAPIData(source, null, encoding, username, password);
+    }
+
+    public static APIScope getAPIData(String source, String format, String encoding,
+            String username, String password) throws IOException, SerializationError, HttpException
+    {
         File file = new File(source);
         APIScope scope = null;
         if (file.isFile()) {
-            /* get format from file extension */
-            String format = source.substring(source.lastIndexOf('.') + 1);
+            if (format == null) {
+                /* get format from file extension */
+                format = source.substring(source.lastIndexOf('.') + 1);
+            }
             InputStream in = new FileInputStream(file);
             Reader reader = new InputStreamReader(in, encoding);
             scope = Serializers.loadAPIScope(reader, format);
@@ -87,7 +95,9 @@ public class IO {
             } else if (contentType.charset != null) {
                 encoding = contentType.charset;
             }
-            String format = contentType.type;
+            if (format == null) {
+                format = contentType.type;
+            }
             InputStream in = entity.getContent();
             Reader reader = new InputStreamReader(in, encoding);
             scope = Serializers.loadAPIScope(reader, format);

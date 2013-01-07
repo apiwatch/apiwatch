@@ -1,14 +1,16 @@
 package org.apiwatch.cli;
 
+import java.io.PrintStream;
+
 import net.sourceforge.argparse4j.inf.Argument;
 import net.sourceforge.argparse4j.inf.ArgumentGroup;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
+import net.sourceforge.argparse4j.inf.ArgumentParserException;
 
 import org.apache.log4j.Level;
 import org.apiwatch.analyser.Analyser;
 import org.apiwatch.analyser.LanguageAnalyser;
 import org.apiwatch.analyser.Option;
-import org.apiwatch.models.APIStabilityViolation;
 import org.apiwatch.models.Severity;
 import org.apiwatch.serialization.Serializers;
 import org.apiwatch.util.ArgActions;
@@ -100,15 +102,33 @@ public class Args {
                 .dest(PASSWORD_OPTION);
     }
 
-    public static final String FORMAT_OPTION = "format";
 
-    public static void format(ArgumentGroup group, String fmt) {
-        group.addArgument("-f", "--format")
-                .help("Output format for API stability violations (default: " + fmt + ")")
-                .dest(FORMAT_OPTION)
-                .setDefault(fmt)
-                .choices(Serializers.availableFormats(APIStabilityViolation.class));
+    public static final String OUTPUT_FORMAT_OPTION = "output_format";
+    public static void outputFormat(ArgumentGroup group, Class<?> objClass, String defaultFmt) {
+        String help = "Output format for " + objClass.getSimpleName();
+        if (defaultFmt != null) {
+            help += " (default: " + defaultFmt + ")";
+        }
+        group.addArgument("-F", "--output-format")
+                .help(help)
+                .dest(OUTPUT_FORMAT_OPTION)
+                .setDefault(defaultFmt)
+                .choices(Serializers.availableFormats(objClass));
     }
+
+    public static final String INPUT_FORMAT_OPTION = "input_format";
+    public static void inputFormat(ArgumentGroup group, Class<?> objClass, String defaultFmt) {
+        String help = "Input format for " + objClass.getSimpleName();
+        if (defaultFmt != null) {
+            help += " (default: " + defaultFmt + ")";
+        }
+        group.addArgument("-f", "--input-format")
+                .help(help)
+                .dest(INPUT_FORMAT_OPTION)
+                .setDefault(defaultFmt)
+                .choices(Serializers.availableFormats(objClass));
+    }
+    
 
     public static final String RULES_CONFIG_OPTION = "rules_config";
 
@@ -159,5 +179,9 @@ public class Args {
         }
     }
 
+    public static void reportArgumentError(ArgumentParserException e, PrintStream o) {
+        o.println("error: " + e.getMessage());
+        o.println("use `-h/--help` for syntax");
+    }
 
 }

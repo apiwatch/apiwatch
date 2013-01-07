@@ -20,6 +20,7 @@ import org.apache.http.HttpException;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apiwatch.analyser.Analyser;
+import org.apiwatch.models.APIElement;
 import org.apiwatch.models.APIScope;
 import org.apiwatch.serialization.Serializers;
 import org.apiwatch.util.DirectoryWalker;
@@ -49,12 +50,12 @@ public class APIScan {
             APIScope scope = Analyser.analyse(files, args.getAttrs());
 
             if (args.get(OUTPUT_LOCATION) != null) {
-                IO.putAPIData(scope, args.getString(Args.FORMAT_OPTION),
+                IO.putAPIData(scope, args.getString(Args.OUTPUT_FORMAT_OPTION),
                         args.getString(Analyser.ENCODING_OPTION), args.getString(OUTPUT_LOCATION),
                         args.getString(Args.USERNAME_OPTION), args.getString(Args.PASSWORD_OPTION));
             } else {
                 OutputStreamWriter writer = new OutputStreamWriter(System.out);
-                Serializers.dumpAPIScope(scope, writer, args.getString(Args.FORMAT_OPTION));
+                Serializers.dumpAPIScope(scope, writer, args.getString(Args.OUTPUT_FORMAT_OPTION));
                 writer.flush();
                 writer.close();
             }
@@ -87,7 +88,7 @@ public class APIScan {
         Args.languageExtensions(inputGroup);
 
         ArgumentGroup outputGroup = cli.addArgumentGroup("Output options");
-        Args.format(outputGroup, "json");
+        Args.outputFormat(outputGroup, APIElement.class, "json");
         outputGroup
                 .addArgument("-o", "--output-location")
                 .dest(OUTPUT_LOCATION)
@@ -103,8 +104,7 @@ public class APIScan {
         try {
             args = cli.parseArgs(argv);
         } catch (ArgumentParserException e) {
-            System.err.println("error: " + e.getMessage());
-            System.err.println("use `-h/--help` for syntax");
+            Args.reportArgumentError(e, System.err);
             System.exit(1);
         }
 
