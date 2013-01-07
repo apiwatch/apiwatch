@@ -89,22 +89,28 @@ import org.apiwatch.analyser.c.Header;
 private boolean isTypeDef = false;
 /* to track typedefs and recognize type names from identifiers */
 private Stack<HashSet<String>> scopeStack = new Stack<HashSet<String>>();
-public List<Header> headers = new ArrayList<Header>();
+public List<Header> headers;
 
-boolean isInSystemHeader(int line) {
-    if (this.headers == null || this.headers.isEmpty()) {
+// special constructor
+public CParser(TokenStream input, List<Header> headers) {
+    this(input, new RecognizerSharedState());
+    this.headers = headers;
+}
+
+private boolean isInSystemHeader(int line) {
+    if (headers == null || headers.isEmpty()) {
         return false;
     }
-    for (int i = 0; i < this.headers.size(); i++) {
-        if (this.headers.get(i).line > line) {
-            return this.headers.get(i - 1).isSystemHeader;
+    for (int i = 0; i < headers.size(); i++) {
+        if (headers.get(i).line > line) {
+            return headers.get(i - 1).isSystemHeader;
         }
     }
     return false;
 }
 
-String getSourceFile(int line) {
-    if (this.headers == null || this.headers.isEmpty()) {
+private String getSourceFile(int line) {
+    if (headers == null || headers.isEmpty()) {
         return "";
     }
     
@@ -112,10 +118,10 @@ String getSourceFile(int line) {
     int realLine = 0;
     String sourceFile = null;
     
-    for (int i = 0; i < this.headers.size(); i++) {
-        header = this.headers.get(i);
+    for (int i = 0; i < headers.size(); i++) {
+        header = headers.get(i);
         if (header.line > line) {
-            header = this.headers.get(i - 1);
+            header = headers.get(i - 1);
             break;
         }
     }
@@ -126,7 +132,7 @@ String getSourceFile(int line) {
 }
 
 
-boolean isTypeName(String name) {
+private boolean isTypeName(String name) {
     if (name.startsWith("__builtin")) {
         // GCC builtins
         return true;
@@ -145,27 +151,33 @@ boolean isTypeName(String name) {
 
 @lexer::members {
 
-public String[] systemPaths = new String[0];
-public List<Header> headers = new ArrayList<Header>(); 
-static final Pattern PREPROC_LINE = Pattern.compile("#\\s*(\\d+)\\s*\"(.+?)\"");
+public List<String> systemPaths;
+public List<Header> headers; 
+private static final Pattern PREPROC_LINE = Pattern.compile("#\\s*(\\d+)\\s*\"(.+?)\"");
+
+// special constructor
+public CLexer(CharStream input, List<String> systemPaths) {
+    this(input, new RecognizerSharedState());
+    this.systemPaths = systemPaths != null ? systemPaths : new ArrayList<String>();
+    this.headers = new ArrayList<Header>();
+}
 
 private void recordHeader(int line, String text) {
-    boolean isSystemHeader = false;
     text = text.replace("\\\\", "\\"); // for windows paths
-    int sourceLine = 0;
-    String sourceFile = null;
-    
     Matcher match = PREPROC_LINE.matcher(text);
     if (match.find()) {
-        sourceLine = Integer.valueOf(match.group(1));
-        sourceFile = match.group(2);
-        for (String path : this.systemPaths) {
-            if (text.contains(path)) {
+		    int sourceLine = Integer.valueOf(match.group(1));
+		    String sourceFile = match.group(2);
+		    boolean isSystemHeader = false;
+        // ignore case and file path separator.
+		    String source = sourceFile.toLowerCase().replace("\\", "/");
+        for (String path : systemPaths) {
+            if (source.startsWith(path.replace("\\", "/").toLowerCase())) {
                 isSystemHeader = true;
                 break;
             }
         }
-        this.headers.add(new Header(line, isSystemHeader, sourceLine, sourceFile));
+        headers.add(new Header(line, isSystemHeader, sourceLine, sourceFile));
     }
 }
     
@@ -223,7 +235,7 @@ declaration
 @init {
     isTypeDef = false;
     int line = $declaration.start.getLine();
-    String sourceFile = this.getSourceFile(line);
+    String sourceFile = getSourceFile(line);
 }                                                                  // special case, looking for typedef
   : TYPEDEF declaration_specifiers? {isTypeDef = true;} init_declarator_list compiler_directive* SEMI
                           -> {isInSystemHeader(line)}? // remove from AST
@@ -804,7 +816,7 @@ fragment
 IntegerTypeSuffix
   : ('u'|'U')  ('l'|'L')
   | ('u'|'U')
-  | ('l'|'L')
+  | ('l'|'L') ('l'|'L')?
   ;
 
 FLOATING_POINT_LITERAL

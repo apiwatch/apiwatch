@@ -66,8 +66,8 @@ public class CTreeWalker extends APITreeWalker {
      */
     private void typeDeclaration(IterableTree ast) {
         String sourceFile = ast.getText();
-        ComplexType type = new ComplexType(null, language, sourceFile, null, apiStack.peek(), null,
-                null, null);
+        ComplexType type = new ComplexType(null, language, sourceFile, Visibility.PUBLIC,
+                apiStack.peek(), null, null, null);
         ((SymbolContainer) apiStack.peek()).symbols().add(type);
         apiStack.add(type);
         // we call declarator first to initialize the name of the type
@@ -82,11 +82,11 @@ public class CTreeWalker extends APITreeWalker {
     private void variable(IterableTree ast) {
 
         String sourceFile;
-        if (ast.getType() == CParser.VARIABLE_DECLARATION) {
+        if (ast.getType() == CParser.VARIABLE_DECLARATION && ast.getText() != null) {
             // only get source file if we have a VARIABLE_DECLARATION node
             sourceFile = ast.getText();
         } else {
-            sourceFile = null;
+            sourceFile = apiStack.peek().sourceFile;
         }
 
         // in C, there can be multiple variables declared at the same time:
@@ -103,8 +103,8 @@ public class CTreeWalker extends APITreeWalker {
         if (__hasComplexTypeDefinition(ast)) {
             // if this is the case, we create a ComplexType and use this type for the following
             // declared variable(s)
-            ComplexType type = new ComplexType(null, language, sourceFile, null, apiStack.peek(),
-                    null, null, null);
+            ComplexType type = new ComplexType(null, language, sourceFile, Visibility.PUBLIC,
+                    apiStack.peek(), null, null, null);
             ((SymbolContainer) apiStack.peek()).symbols().add(type);
 
             apiStack.add(type);
@@ -118,11 +118,11 @@ public class CTreeWalker extends APITreeWalker {
                 variableType = supType + " " + variableType;
             }
 
-            dummy = new Variable(null, language, sourceFile, Visibility.SCOPE, apiStack.peek(),
+            dummy = new Variable(null, language, sourceFile, Visibility.PUBLIC, apiStack.peek(),
                     new HashSet<String>(type.modifiers), variableType, null);
         } else {
             // The temp variable will be directly initialized with DECL_SPECIFIERS
-            dummy = new Variable(null, language, sourceFile, Visibility.SCOPE, apiStack.peek(),
+            dummy = new Variable(null, language, sourceFile, Visibility.PUBLIC, apiStack.peek(),
                     null, null, null);
             // we put the variable on top of the stack
             apiStack.add(dummy);
@@ -177,7 +177,9 @@ public class CTreeWalker extends APITreeWalker {
             return;
         }
 
-        Function func = new Function(null, language, ast.getText(), Visibility.SCOPE,
+        String sourceFile = ast.getText() != null ? ast.getText() : apiStack.peek().sourceFile;
+
+        Function func = new Function(null, language, sourceFile, Visibility.PUBLIC,
                 apiStack.peek(), null, null, null, false, null);
 
         apiStack.add(func);
@@ -228,8 +230,8 @@ public class CTreeWalker extends APITreeWalker {
         if (ast == null) {
             return null;
         }
-        Variable arg = new Variable(null, language, sourceFile, Visibility.SCOPE, apiStack.peek(),
-                null, null, null);
+        Variable arg = new Variable(null, language, apiStack.peek().sourceFile, Visibility.PUBLIC,
+                apiStack.peek(), null, null, null);
 
         if (!nested && apiStack.peek() instanceof Function) {
             // Nested arguments can be found when a function argument is a pointer to a callback
@@ -277,7 +279,7 @@ public class CTreeWalker extends APITreeWalker {
     private void enumerator(IterableTree ast) {
         ComplexType parentEnum = (ComplexType) apiStack.peek();
         Variable enumerator = new Variable(ast.getText(), language, parentEnum.sourceFile,
-                Visibility.SCOPE, parentEnum, null, "enum " + parentEnum.name, null);
+                Visibility.PUBLIC, parentEnum, null, "enum " + parentEnum.name, null);
 
         IterableTree assign = ast.firstChildOfType(CParser.ASSIGN);
         if (assign != null) {
@@ -302,8 +304,7 @@ public class CTreeWalker extends APITreeWalker {
                 if (child.getChildCount() > 0) {
                     IterableTree subChild = child.getChild(0);
                     if (subChild.getType() == CParser.STRUCTURE
-                            || subChild.getType() == CParser.ENUM)
-                    {
+                            || subChild.getType() == CParser.ENUM) {
                         __complexTypeDefinition(subChild);
                     }
                 } else {
@@ -435,8 +436,7 @@ public class CTreeWalker extends APITreeWalker {
             for (IterableTree child : declSpecs) {
                 if (child.getType() == CParser.TYPE) {
                     if (child.firstChildOfType(CParser.STRUCTURE) != null
-                            || child.firstChildOfType(CParser.ENUM) != null)
-                    {
+                            || child.firstChildOfType(CParser.ENUM) != null) {
                         return true;
                     }
                 }

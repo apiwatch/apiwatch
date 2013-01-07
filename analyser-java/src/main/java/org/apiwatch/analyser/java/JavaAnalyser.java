@@ -13,7 +13,9 @@ import java.util.Map;
 import org.antlr.runtime.ANTLRFileStream;
 import org.antlr.runtime.CommonTokenStream;
 import org.antlr.runtime.RecognitionException;
+import org.apiwatch.analyser.Analyser;
 import org.apiwatch.analyser.LanguageAnalyser;
+import org.apiwatch.analyser.Option;
 import org.apiwatch.models.APIScope;
 import org.apiwatch.util.antlr.IterableTree;
 import org.apiwatch.util.antlr.IterableTreeAdaptor;
@@ -21,8 +23,8 @@ import org.apiwatch.util.errors.ParseError;
 
 public class JavaAnalyser implements LanguageAnalyser {
 
-    public static final String[] FILE_EXTENSIONS = { "java" };
-    public static final String LANGUAGE = "Java";
+    private static final String LANGUAGE = "Java";
+    private static final String[] FILE_EXTENSIONS = { "java" };
 
     @Override
     public String[] fileExtensions() {
@@ -35,8 +37,8 @@ public class JavaAnalyser implements LanguageAnalyser {
     }
 
     @Override
-    public APIScope analyse(String sourceFile) throws IOException, ParseError {
-        return this.analyse(sourceFile, null);
+    public Option[] options() {
+        return null;
     }
 
     @Override
@@ -45,17 +47,17 @@ public class JavaAnalyser implements LanguageAnalyser {
     {
         String encoding = null;
         if (options != null) {
-            encoding = (String) options.get("encoding");
+            encoding = (String) options.get(Analyser.ENCODING_OPTION);
         }
         if (encoding == null) {
-            encoding = "UTF8";
+            encoding = Analyser.DEFAULT_ENCODING;
         }
 
         JavaLexer lexer = new JavaLexer(new ANTLRFileStream(sourceFile, encoding));
         JavaParser parser = new JavaParser(new CommonTokenStream(lexer));
         parser.setTreeAdaptor(new IterableTreeAdaptor());
         JavaTreeWalker walker = new JavaTreeWalker(language(), sourceFile);
-        
+
         try {
             Object ast = parser.javaSource().getTree();
             walker.walk((IterableTree) ast);
