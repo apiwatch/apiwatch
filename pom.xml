@@ -15,7 +15,7 @@
     <groupId>org.apiwatch</groupId>
     <artifactId>apiwatch-parent</artifactId>
     <packaging>pom</packaging>
-    <version>1.0-SNAPSHOT</version>
+    <version>0.1-SNAPSHOT</version>
     <name>APIWatch</name>
 
     <description>API stability surveillance tool</description>
@@ -33,7 +33,7 @@
         <developer>
             <id>robin-jarry</id>
             <name>Robin Jarry</name>
-            <email>robin.jarry@ablogix.fr</email>
+            <email>robin.jarry@gmail.fr</email>
         </developer>
     </developers>
     
