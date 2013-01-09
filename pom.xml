@@ -19,7 +19,7 @@
     <name>APIWatch</name>
 
     <description>API stability surveillance tool</description>
-
+    <url>http://www.apiwatch.org/</url>
     <inceptionYear>2012</inceptionYear>
 
 	<licenses>
@@ -38,9 +38,9 @@
     </developers>
     
     <scm>
-        <connection>scm:git:git://github.com/robin-jarry/apiwatch.git</connection>
-        <developerConnection>scm:git:ssh://git@github.com/robin-jarry/apiwatch.git</developerConnection>
-        <url>https://github.com/robin-jarry/apiwatch</url>
+        <connection>scm:git:git://github.com/apiwatch/apiwatch.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/apiwatch/apiwatch.git</developerConnection>
+        <url>https://github.com/apiwatch/apiwatch</url>
     </scm>
 
     <modules>
