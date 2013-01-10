@@ -1,6 +1,6 @@
 #!/bin/env python
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
-# Copyright (c) 2012, Robin Jarry, ABlogiX. All rights reserved.      #
+# Copyright (c) 2012, Robin Jarry. All rights reserved.               #
 #                                                                     #
 # This file is part of APIWATCH and published under the BSD license.  #
 #                                                                     #
@@ -11,7 +11,7 @@ import os, sys, glob
 
 JAVA_LICENSE = """\
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * Copyright (c) 2012, Robin Jarry, ABlogiX. All rights reserved.      *
+ * Copyright (c) 2012, Robin Jarry. All rights reserved.               *
  *                                                                     *
  * This file is part of APIWATCH and published under the BSD license.  *
  *                                                                     *
@@ -21,7 +21,7 @@ JAVA_LICENSE = """\
 XML_LICENSE = """\
 <!--
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * Copyright (c) 2012, Robin Jarry, ABlogiX. All rights reserved.      *
+ * Copyright (c) 2012, Robin Jarry. All rights reserved.               *
  *                                                                     *
  * This file is part of APIWATCH and published under the BSD license.  *
  *                                                                     *
@@ -31,7 +31,7 @@ XML_LICENSE = """\
 """
 SCRIPT_LICENSE = """\
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * #
-# Copyright (c) 2012, Robin Jarry, ABlogiX. All rights reserved.      #
+# Copyright (c) 2012, Robin Jarry. All rights reserved.               #
 #                                                                     #
 # This file is part of APIWATCH and published under the BSD license.  #
 #                                                                     #
