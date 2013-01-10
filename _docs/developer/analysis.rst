@@ -276,7 +276,7 @@ On procédera donc de la manière suivante :
    identifier si ce qui suit l'inclusion fait partie ou non d'un fichier « système ».
 
    +-----------------+----------------------------+------------------+-------------+    
-   |  Ligne dans le  |  Chemin du fichier source  |   Ligne dans le  |  Fichier    | 
+   | Ligne dans le   | Chemin du fichier source   |  Ligne dans le   | Fichier     | 
    | fichier analysé |                            |  fichier source  | « système » |
    +=================+============================+==================+=============+
    |                                       ...                                     |
