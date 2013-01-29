@@ -1,5 +1,5 @@
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * Copyright (c) 2012, Robin Jarry. All rights reserved.               *
+ * Copyright (c) 2012, Robin Jarry, ABlogiX. All rights reserved.      *
  *                                                                     *
  * This file is part of APIWATCH and published under the BSD license.  *
  *                                                                     *
@@ -48,7 +48,7 @@ tokens {
 
 @header {
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * Copyright (c) 2012, Robin Jarry. All rights reserved.               *
+ * Copyright (c) 2012, Robin Jarry, ABlogiX. All rights reserved.      *
  *                                                                     *
  * This file is part of APIWATCH and published under the BSD license.  *
  *                                                                     *
@@ -68,7 +68,7 @@ import org.apiwatch.util.antlr.IterableTree;
 
 @lexer::header {
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
- * Copyright (c) 2012, Robin Jarry. All rights reserved.               *
+ * Copyright (c) 2012, Robin Jarry, ABlogiX. All rights reserved.      *
  *                                                                     *
  * This file is part of APIWATCH and published under the BSD license.  *
  *                                                                     *
@@ -257,7 +257,7 @@ declaration
   ;
 
 declaration_specifiers
-  : compiler_directive* decl_specifier+  -> ^(DECL_SPECIFIERS decl_specifier+)
+  : compiler_directive* decl_specifier+ compiler_directive*  -> ^(DECL_SPECIFIERS decl_specifier+)
   ;
 
 init_declarator_list returns [boolean isFunction]
@@ -378,7 +378,8 @@ enumerator
 
 
 declarator returns [boolean isFunction]
-  : compiler_directive* pointer? compiler_directive* direct_declarator {$isFunction=$direct_declarator.isFunction;}
+  : compiler_directive* pointer? compiler_directive* direct_declarator compiler_directive* 
+                   {$isFunction=$direct_declarator.isFunction;}
                         -> ^(DECLARATOR pointer? direct_declarator)
   | compiler_directive* pointer compiler_directive*                   {$isFunction=false;}
                         -> ^(DECLARATOR pointer)
@@ -406,9 +407,9 @@ array_suffix
   ;
 
 function_suffix
-  : LPAREN VOID? RPAREN compiler_directive*               -> ^(FUNCTION_ARGS)
-  | LPAREN parameter_type_list RPAREN compiler_directive* -> ^(FUNCTION_ARGS parameter_type_list)
-  | LPAREN identifier_list RPAREN compiler_directive*     -> ^(FUNCTION_ARGS identifier_list)
+  : LPAREN VOID? RPAREN                  -> ^(FUNCTION_ARGS)
+  | LPAREN parameter_type_list RPAREN    -> ^(FUNCTION_ARGS parameter_type_list)
+  | LPAREN identifier_list RPAREN        -> ^(FUNCTION_ARGS identifier_list)
   ;
 
 
@@ -430,6 +431,7 @@ attribute
   | IDENTIFIER LPAREN IDENTIFIER COMMA attribute_parameter_list RPAREN
   | IDENTIFIER LPAREN attribute_parameter_list? RPAREN
   | IDENTIFIER
+  | CONST
   ;
 
 inline_assembly
@@ -696,7 +698,6 @@ jump_statement
 // operators and other special chars
 AND                : '&'               ;
 AND_ASSIGN         : '&='              ;
-ASM                : 'asm'|'__asm__'|'__asm';
 ASSIGN             : '='               ;
 ARROW              : '->'              ;
 COLON              : ':'               ;
@@ -743,6 +744,7 @@ XOR                : '^'               ;
 XOR_ASSIGN         : '^='              ;
 
 // keywords
+ASM                : 'asm'|'__asm__'|'__asm';
 AUTO               : 'auto'            ;
 BREAK              : 'break'           ;
 CASE               : 'case'            ;
