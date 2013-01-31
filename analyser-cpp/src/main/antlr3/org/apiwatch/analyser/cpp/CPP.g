@@ -1,5 +1,5 @@
 /*
- * PUBLIC DOMAIN PCCTS-BASED C++ GRAMMAR (cplusplus.g, stat.g, expr.g)
+ * Public DOMAIN PCCTS-BASED C++ GRAMMAR (cplusplus.g, stat.g, expr.g)
  *
  * Authors: Sumana Srinivasan, NeXT Inc.;            sumana_srinivasan@next.com
  *          Terence Parr, Parr Research Corporation; parrt@parr-research.com
@@ -114,13 +114,10 @@
 grammar CPP;
 
 options
-{	
+{  
 language = Java;
 }
 
-tokens {
-	OPERATOR = 'operator';
-}
 
 @parser::header
 {
@@ -145,670 +142,676 @@ tokens {
 
 @lexer::header
 {
- extern "C++"
- {
- #include "header_file.h"
- }
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright (c) 2012, Robin Jarry, All rights reserved.               *
+ *                                                                     *
+ * This file is part of APIWATCH and published under the BSD license.  *
+ *                                                                     *
+ * See the "LICENSE" file for more information.                        *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+package org.apiwatch.analyser.cpp;
+ 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.apiwatch.analyser.cpp.Header;
 }
 
 @lexer::members
 {
-// #include "members_file.h" // already in parser source code
+public List<String> systemPaths;
+public List<Header> headers; 
+private static final Pattern PREPROC_LINE = Pattern.compile("#\\s*(\\d+)\\s*\"(.+?)\"");
+
+// special constructor
+public CPPLexer(CharStream input, List<String> systemPaths) {
+    this(input, new RecognizerSharedState());
+    this.systemPaths = systemPaths != null ? systemPaths : new ArrayList<String>();
+    this.headers = new ArrayList<Header>();
 }
 
-/*
-using namespace std;
-vector<char*> ArgumentsList;
-int APIENTRY WinMain(HINSTANCE hInstance,
-                     HINSTANCE hPrevInstance,
-                     LPSTR     lpCmdLine,
-                     int       nCmdShow)
-{
-   LPWSTR *szArglist;
-    int nArgs =0;
-    szArglist = CommandLineToArgvW(GetCommandLineW(), &nArgs);
-
-    for (int i = 0; i < nArgs; i++) {
-        MessageBoxW(NULL, szArglist[i], L"Args", MB_OK);
-	ArgumentsList.push_back(szArglist[i]);
-	}
-    GlobalFree(szArglist);
+private void recordHeader(int line, String text) {
+    text = text.replace("\\\\", "\\"); // for windows paths
+    Matcher match = PREPROC_LINE.matcher(text);
+    if (match.find()) {
+        int sourceLine = Integer.valueOf(match.group(1));
+        String sourceFile = match.group(2);
+        boolean isSystemHeader = false;
+        // ignore case and file path separator.
+        String source = sourceFile.toLowerCase().replace("\\", "/");
+        for (String path : systemPaths) {
+            if (source.startsWith(path.replace("\\", "/").toLowerCase())) {
+                isSystemHeader = true;
+                break;
+            }
+        }
+        headers.add(new Header(line, isSystemHeader, sourceLine, sourceFile));
+    }
 }
 
-LPWSTR *szArglist;
-int nArgs =0;
-wchar_t wText [MAX_PATH] = {0};
-	
-
-szArglist = CommandLineToArgvW(GetCommandLineW(), &nArgs);
-
-for (int i = 0; i < nArgs; i++) {
-        MessageBoxW(NULL, szArglist[i], L"Args", MB_OK);
-	::MultiByteToWideChar(CP_ACP, NULL, szArglist[i], lstrlenA (szArglist[i]), wText, sizeof(wText));
-	ArgumentsList.push_back(wText[i]);
 }
-MessageBoxW(NULL, szArglist[1], L"Args", MB_OK);
-GlobalFree(szArglist);
-*/
+
 
 //translation_unit
 translation_unit
-	@init
-	{
-		CPPParser__init();
-	}
-	:	{enterExternalScope();}
-		(external_declaration)*  EOF
-		{exitExternalScope();
-				}
+  @init
+  {
+    CPPParser__init();
+  }
+  :  {enterExternalScope();}
+    (external_declaration)*  EOF
+    {exitExternalScope();
+        }
 
-	;
-
-
-
-external_declaration	
-	@init
-	{
-	 //char *s;
-	 lineNo = LT(1)->line;
-	 boolean K_and_R;
-	 K_and_R = FALSE;
-	 //FunctionSpecifier
-	 fs = fsInvalid;	// inline,virtual,explicit
-	 //in_user_file = in_user_file_deferred;
-	}
-	:
-	(
-		// Template explicit specialisation
-		(TEMPLATE LESSTHAN GREATERTHAN)=>
-		{if(statementTrace>=1) 
-			printf("\%d external_declaration template explicit-specialisation\n",LT(1)->line);
-		}
-		TEMPLATE LESSTHAN GREATERTHAN external_declaration
-
-	|
-		// All typedefs
-		('typedef')=>
-		(
-			('typedef' 'enum')=>
-			{if(statementTrace>=1) 
-				printf("\%d external_declaration Typedef enum type\n",LT(1)->line);
-			}
-			'typedef' enum_specifier {_td = TRUE;} (init_declarator_list)? SEMICOLON {end_of_stmt();}
-		|
-			(declaration_specifiers function_declarator[0] SEMICOLON)=>	// DW 11/02/05 This may not be possible
-			{if(statementTrace>=1) 
-				printf("\%d external_declaration Typedef function type\n",LT(1)->line);
-			}
-			declaration
-		|
-			(declaration_specifiers (init_declarator_list)? SEMICOLON)=>
-			{if(statementTrace>=1) 
-				printf("\%d external_declaration Typedef variable type\n",LT(1)->line);
-			}
-			declaration
-		|
-			('typedef' class_specifier)=>
-			{if(statementTrace>=1) 
-				printf("\%d external_declaration Typedef class type\n",LT(1)->line);
-			}
-			'typedef' class_decl_or_def[fs] {_td = TRUE;} (init_declarator_list)? SEMICOLON {end_of_stmt();}
-		)
-		
-	|	
-		// Class template declaration or definition
-		(template_head (fs = function_specifier)* class_specifier)=>
-		{if (statementTrace>=1) 
-			printf("\%d external_declaration Templated class decl or def\n",LT(1)->line);
-		}
-		template_head (fs = function_specifier)* class_decl_or_def[fs] (init_declarator_list)? SEMICOLON {end_of_stmt();}	// declaration
-	|
-		// Templated functions and constructors matched here.
-		{beginTemplateDeclaration();}
-		template_head
-		(  
-			// templated forward class decl, init/decl of static member in template
-			(declaration_specifiers (init_declarator_list)? SEMICOLON {end_of_stmt();})=>
-			{if (statementTrace>=1) 
-				printf("\%d external_declaration Templated class forward declaration\n",LT(1)->line);
-			}
-			declaration_specifiers (init_declarator_list)? SEMICOLON {end_of_stmt();}
-		|  
-			// Templated function declaration
-			(declaration_specifiers function_declarator[0] SEMICOLON)=> 
-			{if (statementTrace>=1) 
-				printf("\%d external_declaration Templated function declaration\n",LT(1)->line);
-			}
-			declaration
-		|  
-			// Templated function definition
-			(declaration_specifiers function_declarator[1] LCURLY)=> 
-			{if (statementTrace>=1) 
-				printf("\%d external_declaration Templated function definition\n",LT(1)->line);
-			}
-			function_definition
-		|
-			// Templated constructor definition
-            		// JEL 4/3/96 Added predicate that works once the
-            		// restriction is added that ctor cannot be virtual
-			(	ctor_decl_spec 
-				{qualifiedItemIsOneOf(qiCtor,0)}?
-			)=>
-			{if (statementTrace>=1) 
-				printf("\%d external_declaration Templated constructor definition\n",LT(1)->line);
-			}
-			ctor_definition
-		)
-		{endTemplateDeclaration();}
-	|  
-		// Enum definition (don't want to backtrack over this in other alts)
-		('enum' (ID)? LCURLY)=>
-		{if (statementTrace>=1) 
-			printf("\%d external_declaration Enum definition\n",LT(1)->line);
-		}
-		enum_specifier (init_declarator_list)? SEMICOLON {end_of_stmt();}
-	|
-		// Destructor definition (templated or non-templated)
-		((template_head)? dtor_head[1] LCURLY)=>
-		{if (statementTrace>=1) 
-			printf("\%d external_declaration Destructor definition\n",LT(1)->line);
-		}
-		(template_head)? dtor_head[1] dtor_body
-	|  
-		// Constructor definition (non-templated)
-		// JEL 4/3/96 Added predicate that works, once the
-		// restriction is added that ctor cannot be virtual
-		// and ctor_declarator uses a more restrictive id
-		(	(//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-			 ctor_decl_spec)?
-			{qualifiedItemIsOneOf(qiCtor,0)}?
-		)=>
-		{if (statementTrace>=1) 
-			printf("\%d external_declaration Constructor definition\n",LT(1)->line);
-		}
-		ctor_definition
-	|  
-		// User-defined type cast
-		(('inline')? scope_override  conversion_function_decl_or_def)=>
-		{if (statementTrace>=1) 
-			printf("\%d external_declaration Operator function\n",LT(1)->line);
-		}
-		('inline')? s = scope_override conversion_function_decl_or_def 
-	|   
-		// Function declaration
-		(declaration_specifiers function_declarator[0] SEMICOLON)=> 
-		{if (statementTrace>=1) 
-			printf("\%d external_declaration Function declaration\n",LT(1)->line);
-		}
-		declaration_specifiers function_declarator[0] SEMICOLON {end_of_stmt();}
-	|
-		// Function definition
-		(declaration_specifiers	function_declarator[1] LCURLY)=> 
-		{if (statementTrace>=1) 
-			printf("\%d external_declaration Function definition\n",LT(1)->line);
-		}
-		function_definition
-	|
-		// Function definition with int return assumed
-		(function_declarator[1] LCURLY)=> 
-		{if (statementTrace>=1) 
-			printf("\%d external_declaration Function definition without return type\n",LT(1)->line);
-		}
-		function_definition
-	|
-		// K & R Function definition
-		(declaration_specifiers	function_declarator[1] declaration)=>
-		{K_and_R = TRUE;
-		 if (statementTrace>=1) 
-			printf("\%d external_declaration K & R function definition\n",LT(1)->line);
-		}
-		function_definition
-	|
-		// K & R Function definition with int return assumed
-		(function_declarator[1] declaration)=>
-		{K_and_R = TRUE;
-		 if (statementTrace>=1) 
-			printf("\%d external_declaration K & R function definition without return type\n",LT(1)->line);
-		}
-		function_definition
-	|
-		// Class declaration or definition
-		(('extern')? (fs = function_specifier)* class_specifier)=>
-		{if (statementTrace>=1) 
-			printf("\%d external_declaration Class decl or def\n",LT(1)->line);
-		}
-		('extern')? (fs = function_specifier)* class_decl_or_def[fs] (init_declarator_list)? SEMICOLON {end_of_stmt();}
+  ;
 
 
-	// by the V3-Author, concepts, copied from the above class def/decl
-	//|
-		// Concept declaration or definition
-		//('concept' ID LCURLY)=>
-		//{if (statementTrace>=1) 
-		//	fprintf(stderr,"\%d external_declaration Concept decl or def\n\t begining at pos \%d\n",LT(1)->line, LT(1)->charPosition+1);
-		// }
-		//concept_decl_or_def 
-		//{
-		//	if (statementTrace>=1) 
-		//	fprintf(stderr,"\t ending in line \%d at pos \%d\n",LT(1)->line, LT(1)->charPosition+1);
-		 //}
 
-		//	SEMICOLON 
-		//	{
-		//	end_of_stmt();}
+external_declaration  
+  @init
+  {
+   //char *s;
+   lineNo = LT(1)->line;
+   boolean K_and_R;
+   K_and_R = False;
+   //FunctionSpecifier
+   fs = fsInvalid;  // inline,virtual,explicit
+   //in_user_file = in_user_file_deferred;
+  }
+  :
+  (
+    // Template explicit specialisation
+    (Template LessThan GreaterThan)=>
+    {if(statementTrace>=1) 
+      printf("\%d external_declaration template explicit-specialisation\n",LT(1)->line);
+    }
+    Template LessThan GreaterThan external_declaration
+
+  |
+    // All typedefs
+    (TypeDef)=>
+    (
+      (TypeDef Enum)=>
+      {if(statementTrace>=1) 
+        printf("\%d external_declaration Typedef enum type\n",LT(1)->line);
+      }
+      TypeDef enum_specifier {_td = True;} (init_declarator_list)? SemiColon {end_of_stmt();}
+    |
+      (declaration_specifiers function_declarator[0] SemiColon)=>  // DW 11/02/05 This may not be possible
+      {if(statementTrace>=1) 
+        printf("\%d external_declaration Typedef function type\n",LT(1)->line);
+      }
+      declaration
+    |
+      (declaration_specifiers (init_declarator_list)? SemiColon)=>
+      {if(statementTrace>=1) 
+        printf("\%d external_declaration Typedef variable type\n",LT(1)->line);
+      }
+      declaration
+    |
+      (TypeDef class_specifier)=>
+      {if(statementTrace>=1) 
+        printf("\%d external_declaration Typedef class type\n",LT(1)->line);
+      }
+      TypeDef class_decl_or_def[fs] {_td = True;} (init_declarator_list)? SemiColon {end_of_stmt();}
+    )
+    
+  |  
+    // Class template declaration or definition
+    (template_head (fs = function_specifier)* class_specifier)=>
+    {if (statementTrace>=1) 
+      printf("\%d external_declaration Templated class decl or def\n",LT(1)->line);
+    }
+    template_head (fs = function_specifier)* class_decl_or_def[fs] (init_declarator_list)? SemiColon {end_of_stmt();}  // declaration
+  |
+    // Templated functions and constructors matched here.
+    {beginTemplateDeclaration();}
+    template_head
+    (  
+      // templated forward class decl, init/decl of static member in template
+      (declaration_specifiers (init_declarator_list)? SemiColon {end_of_stmt();})=>
+      {if (statementTrace>=1) 
+        printf("\%d external_declaration Templated class forward declaration\n",LT(1)->line);
+      }
+      declaration_specifiers (init_declarator_list)? SemiColon {end_of_stmt();}
+    |  
+      // Templated function declaration
+      (declaration_specifiers function_declarator[0] SemiColon)=> 
+      {if (statementTrace>=1) 
+        printf("\%d external_declaration Templated function declaration\n",LT(1)->line);
+      }
+      declaration
+    |  
+      // Templated function definition
+      (declaration_specifiers function_declarator[1] LCurly)=> 
+      {if (statementTrace>=1) 
+        printf("\%d external_declaration Templated function definition\n",LT(1)->line);
+      }
+      function_definition
+    |
+      // Templated constructor definition
+                // JEL 4/3/96 Added predicate that works once the
+                // restriction is added that ctor cannot be virtual
+      (  ctor_decl_spec 
+        {qualifiedItemIsOneOf(qiCtor,0)}?
+      )=>
+      {if (statementTrace>=1) 
+        printf("\%d external_declaration Templated constructor definition\n",LT(1)->line);
+      }
+      ctor_definition
+    )
+    {endTemplateDeclaration();}
+  |  
+    // Enum definition (don't want to backtrack over this in other alts)
+    (Enum (ID)? LCurly)=>
+    {if (statementTrace>=1) 
+      printf("\%d external_declaration Enum definition\n",LT(1)->line);
+    }
+    enum_specifier (init_declarator_list)? SemiColon {end_of_stmt();}
+  |
+    // Destructor definition (templated or non-templated)
+    ((template_head)? dtor_head[1] LCurly)=>
+    {if (statementTrace>=1) 
+      printf("\%d external_declaration Destructor definition\n",LT(1)->line);
+    }
+    (template_head)? dtor_head[1] dtor_body
+  |  
+    // Constructor definition (non-templated)
+    // JEL 4/3/96 Added predicate that works, once the
+    // restriction is added that ctor cannot be virtual
+    // and ctor_declarator uses a more restrictive id
+    (  (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
+       ctor_decl_spec)?
+      {qualifiedItemIsOneOf(qiCtor,0)}?
+    )=>
+    {if (statementTrace>=1) 
+      printf("\%d external_declaration Constructor definition\n",LT(1)->line);
+    }
+    ctor_definition
+  |  
+    // User-defined type cast
+    ((Inline)? scope_override  conversion_function_decl_or_def)=>
+    {if (statementTrace>=1) 
+      printf("\%d external_declaration Operator function\n",LT(1)->line);
+    }
+    (Inline)? s = scope_override conversion_function_decl_or_def 
+  |   
+    // Function declaration
+    (declaration_specifiers function_declarator[0] SemiColon)=> 
+    {if (statementTrace>=1) 
+      printf("\%d external_declaration Function declaration\n",LT(1)->line);
+    }
+    declaration_specifiers function_declarator[0] SemiColon {end_of_stmt();}
+  |
+    // Function definition
+    (declaration_specifiers  function_declarator[1] LCurly)=> 
+    {if (statementTrace>=1) 
+      printf("\%d external_declaration Function definition\n",LT(1)->line);
+    }
+    function_definition
+  |
+    // Function definition with int return assumed
+    (function_declarator[1] LCurly)=> 
+    {if (statementTrace>=1) 
+      printf("\%d external_declaration Function definition without return type\n",LT(1)->line);
+    }
+    function_definition
+  |
+    // K & R Function definition
+    (declaration_specifiers  function_declarator[1] declaration)=>
+    {K_and_R = True;
+     if (statementTrace>=1) 
+      printf("\%d external_declaration K & R function definition\n",LT(1)->line);
+    }
+    function_definition
+  |
+    // K & R Function definition with int return assumed
+    (function_declarator[1] declaration)=>
+    {K_and_R = True;
+     if (statementTrace>=1) 
+      printf("\%d external_declaration K & R function definition without return type\n",LT(1)->line);
+    }
+    function_definition
+  |
+    // Class declaration or definition
+    ((Extern)? (fs = function_specifier)* class_specifier)=>
+    {if (statementTrace>=1) 
+      printf("\%d external_declaration Class decl or def\n",LT(1)->line);
+    }
+    (Extern)? (fs = function_specifier)* class_decl_or_def[fs] (init_declarator_list)? SemiColon {end_of_stmt();}
 
 
-	|
-		// Copied from member_declaration 31/05/07
-		(declaration_specifiers (init_declarator_list)? SEMICOLON)=>
-		{if (statementTrace>=1) 
-			printf("\%d external_declaration Declaration\n",LT(1)->line);
-		}
-		declaration
+  // by the V3-Author, concepts, copied from the above class def/decl
+  //|
+    // Concept declaration or definition
+    //('concept' ID LCurly)=>
+    //{if (statementTrace>=1) 
+    //  fprintf(stderr,"\%d external_declaration Concept decl or def\n\t begining at pos \%d\n",LT(1)->line, LT(1)->charPosition+1);
+    // }
+    //concept_decl_or_def 
+    //{
+    //  if (statementTrace>=1) 
+    //  fprintf(stderr,"\t ending in line \%d at pos \%d\n",LT(1)->line, LT(1)->charPosition+1);
+     //}
 
-	|  
-		// Namespace definition
-		{if (statementTrace>=1) 
-			printf("\%d external_declaration Namespace definition\n",LT(1)->line);
-		}
-		'namespace' namespace_definition
-	|	
-		// Semicolon
-		{if (statementTrace>=1) 
-			printf("\%d external_declaration Semicolon\n",LT(1)->line);
-		}
-		SEMICOLON {end_of_stmt();}
-	|	
-		// Anything else 
-		{if (statementTrace>=1) 
-			printf("\%d external_declaration Other Declaration\n",LT(1)->line);
-		}
-		declaration
+    //  SemiColon 
+    //  {
+    //  end_of_stmt();}
 
-	|	
-		// The next two entries may be used for debugging
-		// Use this statement in the source code to turn antlr trace on (See note above)
-		'antlrTrace_on' {antlrTrace(TRUE);}
-	|
-		// Use this statement in the source code to turn antlr trace off (See note above)
-		'antlrTrace_off' {antlrTrace(FALSE);}
 
-	)
-	;
+  |
+    // Copied from member_declaration 31/05/07
+    (declaration_specifiers (init_declarator_list)? SemiColon)=>
+    {if (statementTrace>=1) 
+      printf("\%d external_declaration Declaration\n",LT(1)->line);
+    }
+    declaration
+
+  |  
+    // Namespace definition
+    {if (statementTrace>=1) 
+      printf("\%d external_declaration Namespace definition\n",LT(1)->line);
+    }
+    Namespace namespace_definition
+  |  
+    // Semicolon
+    {if (statementTrace>=1) 
+      printf("\%d external_declaration Semicolon\n",LT(1)->line);
+    }
+    SemiColon {end_of_stmt();}
+  |  
+    // Anything else 
+    {if (statementTrace>=1) 
+      printf("\%d external_declaration Other Declaration\n",LT(1)->line);
+    }
+    declaration
+
+  |  
+    // The next two entries may be used for debugging
+    // Use this statement in the source code to turn antlr trace on (See note above)
+    'antlrTrace_on' {antlrTrace(True);}
+  |
+    // Use this statement in the source code to turn antlr trace off (See note above)
+    'antlrTrace_off' {antlrTrace(False);}
+
+  )
+  ;
 
 //member_declaration
 member_declaration
-	//options{backtrack=true;}
-	@init
-	{
-		//char *q;
-	lineNo = LT(1)->line;
-	//FunctionSpecifier fs = fsInvalid;	// inline,virtual,explicit
-	}
-	:
-	(
-		// Template explicit specialisation
-		(TEMPLATE LESSTHAN GREATERTHAN)=>
-		{if(statementTrace>=1) 
-			printf("\%d member_declaration Template explicit-specialisation\n",LT(1)->line);
-		}
-		TEMPLATE LESSTHAN GREATERTHAN member_declaration
-	|
-	
-		// All typedefs
-	//(options{backtrack=true;}:
-	 // (
-		('typedef')=>
-		(
-			('typedef' 'enum')=>
-			{if(statementTrace>=1) 
-				printf("\%d member_declaration Typedef enum type\n",LT(1)->line);
-			}
-			'typedef' enum_specifier {_td = TRUE;} (init_declarator_list)? SEMICOLON {end_of_stmt();}
-		|
-			(declaration_specifiers function_declarator[0] SEMICOLON)=>	// DW 11/02/05 This may not be possible member declaration
-			{if(statementTrace>=1) 
-				printf("\%d member_declaration Typedef function type\n",LT(1)->line);
-			}
-			declaration
-			//SEMICOLON
-		|
-			(declaration_specifiers (init_declarator_list)? SEMICOLON)=>
-			{if(statementTrace>=1) 
-				printf("\%d member_declaration Typedef variable type\n",LT(1)->line);
-			}
-			declaration
-			//SEMICOLON
-		|
-			('typedef' class_specifier)=>
-			{if(statementTrace>=1) 
-				printf("\%d member_declaration Typedef class type\n",LT(1)->line);
-			}
-			'typedef' class_decl_or_def[fs] {_td = TRUE;} (init_declarator_list)? SEMICOLON {end_of_stmt();}
-		)
-	 //)
-	//)
-	|
-		// Function declaration
-		(declaration_specifiers	function_declarator[0] SEMICOLON)=>
-		{if (statementTrace>=1) 
-			printf("\%d member_declaration Function declaration\n",LT(1)->line);
-		}
-		declaration_specifiers function_declarator[0] SEMICOLON {end_of_stmt();}
-	
-	|  
-		// Function definition
-		(declaration_specifiers function_declarator[1] LCURLY)=>
-		{if (statementTrace>=1) 
-			printf("\%d member_declaration Function definition\n",LT(1)->line);
-		}
-		function_definition
-	////	
-	|
-		// Class declaration or definition
-		(('friend')? (fs = function_specifier)* class_specifier)=>
-		{if (statementTrace>=1) 
-			printf("\%d member_declaration Class decl or def\n",LT(1)->line);
-		}
-		('friend')? (fs = function_specifier)* class_decl_or_def[fs] (init_declarator_list)? SEMICOLON {end_of_stmt();}
-	| 
-		(declaration_specifiers (init_declarator_list)? SEMICOLON)=>
-		{if (statementTrace>=1) 
-			printf("\%d member_declaration Declaration\n",LT(1)->line);
-		}
-		declaration //HERE//
-	|
+  //options{backtrack=true;}
+  @init
+  {
+    //char *q;
+  lineNo = LT(1)->line;
+  //FunctionSpecifier fs = fsInvalid;  // inline,virtual,explicit
+  }
+  :
+  (
+    // Template explicit specialisation
+    (Template LessThan GreaterThan)=>
+    {if(statementTrace>=1) 
+      printf("\%d member_declaration Template explicit-specialisation\n",LT(1)->line);
+    }
+    Template LessThan GreaterThan member_declaration
+  |
+  
+    // All typedefs
+  //(options{backtrack=true;}:
+   // (
+    (TypeDef)=>
+    (
+      (TypeDef Enum)=>
+      {if(statementTrace>=1) 
+        printf("\%d member_declaration Typedef enum type\n",LT(1)->line);
+      }
+      TypeDef enum_specifier {_td = True;} (init_declarator_list)? SemiColon {end_of_stmt();}
+    |
+      (declaration_specifiers function_declarator[0] SemiColon)=>  // DW 11/02/05 This may not be possible member declaration
+      {if(statementTrace>=1) 
+        printf("\%d member_declaration Typedef function type\n",LT(1)->line);
+      }
+      declaration
+      //SemiColon
+    |
+      (declaration_specifiers (init_declarator_list)? SemiColon)=>
+      {if(statementTrace>=1) 
+        printf("\%d member_declaration Typedef variable type\n",LT(1)->line);
+      }
+      declaration
+      //SemiColon
+    |
+      (TypeDef class_specifier)=>
+      {if(statementTrace>=1) 
+        printf("\%d member_declaration Typedef class type\n",LT(1)->line);
+      }
+      TypeDef class_decl_or_def[fs] {_td = True;} (init_declarator_list)? SemiColon {end_of_stmt();}
+    )
+   //)
+  //)
+  |
+    // Function declaration
+    (declaration_specifiers  function_declarator[0] SemiColon)=>
+    {if (statementTrace>=1) 
+      printf("\%d member_declaration Function declaration\n",LT(1)->line);
+    }
+    declaration_specifiers function_declarator[0] SemiColon {end_of_stmt();}
+  
+  |  
+    // Function definition
+    (declaration_specifiers function_declarator[1] LCurly)=>
+    {if (statementTrace>=1) 
+      printf("\%d member_declaration Function definition\n",LT(1)->line);
+    }
+    function_definition
+  ////  
+  |
+    // Class declaration or definition
+    ((Friend)? (fs = function_specifier)* class_specifier)=>
+    {if (statementTrace>=1) 
+      printf("\%d member_declaration Class decl or def\n",LT(1)->line);
+    }
+    (Friend)? (fs = function_specifier)* class_decl_or_def[fs] (init_declarator_list)? SemiColon {end_of_stmt();}
+  | 
+    (declaration_specifiers (init_declarator_list)? SemiColon)=>
+    {if (statementTrace>=1) 
+      printf("\%d member_declaration Declaration\n",LT(1)->line);
+    }
+    declaration //HERE//
+  |
 
-	  
-		// Member without a type (I guess it can only be a function declaration or definition)
-		((fs = function_specifier)* function_declarator[0] SEMICOLON)=>
-		{fprintf(stderr,"\%d warning Function declaration found without return type\n",LT(1)->line);
-		 if (statementTrace>=1) 
-			printf("\%d member_declaration Function declaration\n",LT(1)->line);
-		}
-		(fs = function_specifier)* function_declarator[0] SEMICOLON {end_of_stmt();}
-	|
-		// Member without a type (I guess it can only be a function definition)
-		((fs = function_specifier)* function_declarator[1] LCURLY)=>
-		{fprintf(stderr,"\%d warning Function definition found without return type\n",LT(1)->line);
-		 if (statementTrace>=1) 
-			printf("\%d member_declaration Function definition without return type\n",LT(1)->line);
-		}
-		(fs = function_specifier)* function_declarator[1] compound_statement {endFunctionDefinition();}
-	|
-	
-	
-	
-	
-
-
-	
-		// Templated class declaration or definition
-		(template_head (fs = function_specifier)* class_specifier)=>
-		{if (statementTrace>=1) 
-			printf("\%d member_declaration Templated class decl or def\n",LT(1)->line);
-		}
-		template_head (fs = function_specifier)* class_decl_or_def[fs] (init_declarator_list)? SEMICOLON {end_of_stmt();}	// declaration
-	|  
-		// Enum definition (don't want to backtrack over this in other alts)
-		('enum' (ID)? LCURLY)=>
-		{if (statementTrace>=1) 
-			printf("\%d member_declaration Enum definition\n",LT(1)->line);
-		}
-		enum_specifier (init_declarator_list)? SEMICOLON	{end_of_stmt();}
-	|
-		// Constructor declarator
-		(	ctor_decl_spec
-			{qualifiedItemIsOneOf(qiCtor,0)}? 
-			ctor_declarator[0] SEMICOLON
-		)=>
-		{if (statementTrace>=1) 
-			printf("\%d member_declaration Constructor declarator\n",LT(1)->line);
-		}
-		ctor_decl_spec ctor_declarator[0] SEMICOLON {end_of_stmt();}
-	|  
-		// JEL Predicate to distinguish ctor from function
-		// This works now that ctor cannot have VIRTUAL
-		// It unfortunately matches A::A where A is not enclosing
-		// class -- this will have to be checked semantically
-		// Constructor definition
-		(	ctor_decl_spec
-			{qualifiedItemIsOneOf(qiCtor,0)}?
-			ctor_declarator[1]
-			(COLON        // DEFINITION :ctor_initializer
-			|LCURLY       // DEFINITION (compound Statement) ?
-			)
-		)=>
-		{if (statementTrace>=1) 
-			printf("\%d member_declaration Constructor definition\n",LT(1)->line);
-		}
-		ctor_definition 
-	|  
-		// No template_head allowed for dtor member
-		// Backtrack if not a dtor (no TILDE)
-		// Destructor declaration
-		(dtor_head[0] SEMICOLON)=>
-		{if (statementTrace>=1) 
-			printf("\%d member_declaration Destructor declaration\n",LT(1)->line);
-		}
-		dtor_head[0] SEMICOLON {end_of_stmt();}
-	|//
-		// No template_head allowed for dtor member
-		// Backtrack if not a dtor (no TILDE)
-		// Destructor definition
-		(dtor_head[1] LCURLY)=>
-		{if (statementTrace>=1) 
-			printf("\%d member_declaration Destructor definition\n",LT(1)->line);
-		}
-		dtor_head[1] dtor_body
-	|  
-		// User-defined type cast
-		(('inline')? conversion_function_decl_or_def)=>
-		{if (statementTrace>=1) 
-			printf("\%d member_declaration Operator function\n",LT(1)->line);
-		}
-		('inline')? conversion_function_decl_or_def
-	|  
-		// Hack to handle decls like "superclass::member",
-		// to redefine access to private base class public members
-		// Qualified identifier
-		(qualified_id SEMICOLON)=>
-		{if (statementTrace>=1) 
-			printf("\%d member_declaration Qualified ID\n",LT(1)->line);
-		}
-		q = qualified_id SEMICOLON {end_of_stmt();}
-	////	
-	|
-		// Access specifier  
-		{if (statementTrace>=1) 
-			printf("\%d member_declaration Access specifier\n",LT(1)->line);
-		}
-		access_specifier COLON
-	|
-		// Semicolon
-		{if (statementTrace>=1) 
-			printf("\%d member_declaration Semicolon\n",LT(1)->line);
-		}
-		SEMICOLON {end_of_stmt();}
-	|	
-		// The next two entries may be used for debugging
-		// Use this statement in the source code to turn antlr trace on (See note above)
-		'antlrTrace_on' {antlrTrace(TRUE);}
-	|
-		// Use this statement in the source code to turn antlr trace off (See note above)
-		'antlrTrace_off' {antlrTrace(FALSE);}
+    
+    // Member without a type (I guess it can only be a function declaration or definition)
+    ((fs = function_specifier)* function_declarator[0] SemiColon)=>
+    {fprintf(stderr,"\%d warning Function declaration found without return type\n",LT(1)->line);
+     if (statementTrace>=1) 
+      printf("\%d member_declaration Function declaration\n",LT(1)->line);
+    }
+    (fs = function_specifier)* function_declarator[0] SemiColon {end_of_stmt();}
+  |
+    // Member without a type (I guess it can only be a function definition)
+    ((fs = function_specifier)* function_declarator[1] LCurly)=>
+    {fprintf(stderr,"\%d warning Function definition found without return type\n",LT(1)->line);
+     if (statementTrace>=1) 
+      printf("\%d member_declaration Function definition without return type\n",LT(1)->line);
+    }
+    (fs = function_specifier)* function_declarator[1] compound_statement {endFunctionDefinition();}
+  |
+  
+  
+  
+  
 
 
+  
+    // Templated class declaration or definition
+    (template_head (fs = function_specifier)* class_specifier)=>
+    {if (statementTrace>=1) 
+      printf("\%d member_declaration Templated class decl or def\n",LT(1)->line);
+    }
+    template_head (fs = function_specifier)* class_decl_or_def[fs] (init_declarator_list)? SemiColon {end_of_stmt();}  // declaration
+  |  
+    // Enum definition (don't want to backtrack over this in other alts)
+    (Enum (ID)? LCurly)=>
+    {if (statementTrace>=1) 
+      printf("\%d member_declaration Enum definition\n",LT(1)->line);
+    }
+    enum_specifier (init_declarator_list)? SemiColon  {end_of_stmt();}
+  |
+    // Constructor declarator
+    (  ctor_decl_spec
+      {qualifiedItemIsOneOf(qiCtor,0)}? 
+      ctor_declarator[0] SemiColon
+    )=>
+    {if (statementTrace>=1) 
+      printf("\%d member_declaration Constructor declarator\n",LT(1)->line);
+    }
+    ctor_decl_spec ctor_declarator[0] SemiColon {end_of_stmt();}
+  |  
+    // JEL Predicate to distinguish ctor from function
+    // This works now that ctor cannot have Virtual
+    // It unfortunately matches A::A where A is not enclosing
+    // class -- this will have to be checked semantically
+    // Constructor definition
+    (  ctor_decl_spec
+      {qualifiedItemIsOneOf(qiCtor,0)}?
+      ctor_declarator[1]
+      (Colon        // DEFINITION :ctor_initializer
+      |LCurly       // DEFINITION (compound Statement) ?
+      )
+    )=>
+    {if (statementTrace>=1) 
+      printf("\%d member_declaration Constructor definition\n",LT(1)->line);
+    }
+    ctor_definition 
+  |  
+    // No template_head allowed for dtor member
+    // Backtrack if not a dtor (no Tilde)
+    // Destructor declaration
+    (dtor_head[0] SemiColon)=>
+    {if (statementTrace>=1) 
+      printf("\%d member_declaration Destructor declaration\n",LT(1)->line);
+    }
+    dtor_head[0] SemiColon {end_of_stmt();}
+  |//
+    // No template_head allowed for dtor member
+    // Backtrack if not a dtor (no Tilde)
+    // Destructor definition
+    (dtor_head[1] LCurly)=>
+    {if (statementTrace>=1) 
+      printf("\%d member_declaration Destructor definition\n",LT(1)->line);
+    }
+    dtor_head[1] dtor_body
+  |  
+    // User-defined type cast
+    ((Inline)? conversion_function_decl_or_def)=>
+    {if (statementTrace>=1) 
+      printf("\%d member_declaration Operator function\n",LT(1)->line);
+    }
+    (Inline)? conversion_function_decl_or_def
+  |  
+    // Hack to handle decls like "superclass::member",
+    // to redefine access to private base class public members
+    // Qualified identifier
+    (qualified_id SemiColon)=>
+    {if (statementTrace>=1) 
+      printf("\%d member_declaration Qualified ID\n",LT(1)->line);
+    }
+    q = qualified_id SemiColon {end_of_stmt();}
+  ////  
+  |
+    // Access specifier  
+    {if (statementTrace>=1) 
+      printf("\%d member_declaration Access specifier\n",LT(1)->line);
+    }
+    access_specifier Colon
+  |
+    // Semicolon
+    {if (statementTrace>=1) 
+      printf("\%d member_declaration Semicolon\n",LT(1)->line);
+    }
+    SemiColon {end_of_stmt();}
+  |  
+    // The next two entries may be used for debugging
+    // Use this statement in the source code to turn antlr trace on (See note above)
+    'antlrTrace_on' {antlrTrace(True);}
+  |
+    // Use this statement in the source code to turn antlr trace off (See note above)
+    'antlrTrace_off' {antlrTrace(False);}
 
-	
-	
-	)
-	;
-	
+
+
+  
+  
+  )
+  ;
+  
  
 
 //namespace_definition
 namespace_definition
-	:
-		(ns=ID{declaratorID(($ns.text->chars),qiType);})?
-		LCURLY 
-		{enterNewLocalScope();}
-		(external_declaration)*
-		{exitLocalScope();}
-		RCURLY
-	;
+  :
+    (ns=ID{declaratorID(($ns.text->chars),qiType);})?
+    LCurly 
+    {enterNewLocalScope();}
+    (external_declaration)*
+    {exitLocalScope();}
+    RCurly
+  ;
 
 //namespace_alias_definition
 namespace_alias_definition
-	//{
-	//char *qid;
-	//}
-	:
-		'namespace'
-		ns2=ID {declaratorID(($ns2.text->chars),qiType);}
-		ASSIGNEQUAL qid = qualified_id SEMICOLON {end_of_stmt();} 
-	;
+  //{
+  //char *qid;
+  //}
+  :
+    Namespace
+    ns2=ID {declaratorID(($ns2.text->chars),qiType);}
+    Assign qid = qualified_id SemiColon {end_of_stmt();} 
+  ;
 
 //function_definition
 function_definition
-	@init
-	{
-	lineNo = LT(1)->line;
-	}
-	:
-	(	// Next line is equivalent to guarded predicate in PCCTS
-		// (SCOPE | ID)? => <<qualifiedItemIsOneOf(qiType|qiCtor)>>?
-		{( !(LA(1)==SCOPE||LA(1)==ID) || qualifiedItemIsOneOf(qiType|qiCtor,0) )}? 
-		declaration_specifiers function_declarator[1]
-		(	//{dummyVar}? //added by V3-Author //options{warnWhenFollowAmbig = FALSE;}:
-			(declaration)=> 
-			({lineNo = LT(1)->line;} declaration)*	// Possible for K & R definition
-			{in_parameter_list = FALSE;}
-		)?
-		compound_statement
-	|	
-		function_declarator[1]
-		(	//{dummyVar}? //added by V3-Author //options{warnWhenFollowAmbig = FALSE;}:
-			(declaration)=>
-			({lineNo = LT(1)->line;} declaration)*	// Possible for K & R definition
-			{in_parameter_list = FALSE;}
-		)?
-		compound_statement
-	)
-	{endFunctionDefinition();}
-	;
+  @init
+  {
+  lineNo = LT(1)->line;
+  }
+  :
+  (  // Next line is equivalent to guarded predicate in PCCTS
+    // (Scope | ID)? => <<qualifiedItemIsOneOf(qiType|qiCtor)>>?
+    {( !(LA(1)==Scope||LA(1)==ID) || qualifiedItemIsOneOf(qiType|qiCtor,0) )}? 
+    declaration_specifiers function_declarator[1]
+    (  //{dummyVar}? //added by V3-Author //options{warnWhenFollowAmbig = False;}:
+      (declaration)=> 
+      ({lineNo = LT(1)->line;} declaration)*  // Possible for K & R definition
+      {in_parameter_list = False;}
+    )?
+    compound_statement
+  |  
+    function_declarator[1]
+    (  //{dummyVar}? //added by V3-Author //options{warnWhenFollowAmbig = False;}:
+      (declaration)=>
+      ({lineNo = LT(1)->line;} declaration)*  // Possible for K & R definition
+      {in_parameter_list = False;}
+    )?
+    compound_statement
+  )
+  {endFunctionDefinition();}
+  ;
 
 //declaration
 declaration
-	:	
-		('extern' StringLiteral)=>
-		linkage_specification
-	|	
-		simple_declaration
-	|	
-		using_statement
-	;
+  :  
+    (Extern StringLiteral)=>
+    linkage_specification
+  |  
+    simple_declaration
+  |  
+    using_statement
+  ;
 
 
 //linkage_specification
 linkage_specification
-	:	
-		'extern'
-		StringLiteral
-		(LCURLY (external_declaration)* RCURLY
-		|declaration
-		)
-	;
+  :  
+    Extern
+    StringLiteral
+    (LCurly (external_declaration)* RCurly
+    |declaration
+    )
+  ;
 
 //class_head
 class_head
-	:	// Used only by predicates
-		('struct'
-		|'union' 
-		|'class' 
-		)
-		(ID	
-			(LESSTHAN template_argument_list GREATERTHAN)?
-			(base_clause)? 
-		)? 
-		LCURLY
-	;
+  :  // Used only by predicates
+    (Struct
+    |Union 
+    |Class 
+    )
+    (ID  
+      (LessThan template_argument_list GreaterThan)?
+      (base_clause)? 
+    )? 
+    LCurly
+  ;
 
 //declaration_specifiers
 declaration_specifiers
-	@init
-	{// Locals
-	boolean td = FALSE;	// For typedef
-	boolean fd = FALSE;	// For friend
-	 sc = scInvalid;	// auto,register,static,extern,mutable
-	 tq = tqInvalid;	// const,volatile	// aka cv_qualifier See type_qualifier
-	 ts = tsInvalid;	// char,int,double, etc., class,struct,union
-	 fs = fsInvalid;	// inline,virtual,explicit
-	//}
-	//:
-	//{
-	// Global flags to allow for nested declarations
-	_td = FALSE;		// For typedef
-	_fd = FALSE;		// For friend
-	_sc = scInvalid;	// For StorageClass		// auto,register,static,extern,mutable
-	_tq = tqInvalid;	// For TypeQualifier	// aka cv_qualifier See type_qualifier
-	_ts = tsInvalid;	// For TypeSpecifier
-	_fs = fsInvalid;	// For FunctionSpecifier	// inline,virtual,explicit
-	}
-	:
-	(	
-		(//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-			'typedef'	{td=TRUE;}			
-		|	'friend'	{fd=TRUE;}
-		|	sc = storage_class_specifier	// auto,register,static,extern,mutable
-		|	tq = type_qualifier		// const,volatile	// aka cv_qualifier See type_qualifier
-		|	fs = function_specifier	// inline,virtual,explicit
-		|	('_declspec'|'__declspec') LPAREN ID RPAREN 
-		)* 
-		ts = type_specifier
-		(tq = type_qualifier)*		// const,volatile	// aka cv_qualifier See type_qualifier
-	)
-	{_td=td; declarationSpecifier(td,fd,sc,tq,ts,fs);}
-	;
+  @init
+  {// Locals
+  boolean td = False;  // For typedef
+  boolean fd = False;  // For friend
+   sc = scInvalid;  // auto,register,static,extern,mutable
+   tq = tqInvalid;  // const,volatile  // aka cv_qualifier See type_qualifier
+   ts = tsInvalid;  // char,int,double, etc., class,struct,union
+   fs = fsInvalid;  // inline,virtual,explicit
+  //}
+  //:
+  //{
+  // Global flags to allow for nested declarations
+  _td = False;    // For typedef
+  _fd = False;    // For friend
+  _sc = scInvalid;  // For StorageClass    // auto,register,static,extern,mutable
+  _tq = tqInvalid;  // For TypeQualifier  // aka cv_qualifier See type_qualifier
+  _ts = tsInvalid;  // For TypeSpecifier
+  _fs = fsInvalid;  // For FunctionSpecifier  // inline,virtual,explicit
+  }
+  :
+  (  
+    (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
+      TypeDef  {td=True;}      
+    |  Friend  {fd=True;}
+    |  sc = storage_class_specifier  // auto,register,static,extern,mutable
+    |  tq = type_qualifier    // const,volatile  // aka cv_qualifier See type_qualifier
+    |  fs = function_specifier  // inline,virtual,explicit
+    |  DeclSpec LParen ID RParen 
+    )* 
+    ts = type_specifier
+    (tq = type_qualifier)*    // const,volatile  // aka cv_qualifier See type_qualifier
+  )
+  {_td=td; declarationSpecifier(td,fd,sc,tq,ts,fs);}
+  ;
 
 
 //storage_class_specifier
 storage_class_specifier returns [StorageClass sc]
-	@init
-	{
-	sc = scInvalid;
-	}
-	:	'auto'		{sc = scAUTO;}
-	|	'register'	{sc = scREGISTER;}
-	|	'static'	{sc = scSTATIC;}
-	|	'extern'	{sc = scEXTERN;}
-	|	'mutable'	{sc = scMUTABLE;}
-	;
+  @init
+  {
+  sc = scInvalid;
+  }
+  :  Auto    {sc = scAuto;}
+  |  Register  {sc = scRegister;}
+  |  Static  {sc = scStatic;}
+  |  Extern  {sc = scExtern;}
+  |  Mutable  {sc = scMutable;}
+  ;
 
 
 //function_specifier
 function_specifier returns [FunctionSpecifier fs]
-	@init
-	{
-	fs = fsInvalid;
-	}
-	:	('inline'|'_inline'|'__inline')	{fs = fsINLINE;}
-	|	'virtual'						{fs = fsVIRTUAL;}
-	|	'explicit'						{fs = fsEXPLICIT;}
-	;
+  @init
+  {
+  fs = fsInvalid;
+  }
+  :  Inline             {fs = fsInline;}
+  |  Virtual            {fs = fsVirtual;}
+  |  Explicit            {fs = fsExplicit;}
+  ;
 
 //type_specifier
 type_specifier returns [TypeSpecifier ts]
-	@init
-	{//char *s;
-	 TypeQualifier tq = tqInvalid;
-	  ts = tsInvalid;
-	}
-	:	// ts = simple_type_specifier 
-		lbl_ts = simple_type_specifier 
-		//added by V3-Author
-		{ ts = lbl_ts; }
-	;
+  @init
+  {//char *s;
+   TypeQualifier tq = tqInvalid;
+    ts = tsInvalid;
+  }
+  :  // ts = simple_type_specifier 
+    lbl_ts = simple_type_specifier 
+    //added by V3-Author
+    { ts = lbl_ts; }
+  ;
 
 
 
@@ -821,197 +824,192 @@ type_specifier returns [TypeSpecifier ts]
 
 //simple_type_specifier
 simple_type_specifier returns [TypeSpecifier ts]
-	@init
-	{
-	//char *s;
-	ts = tsInvalid; 
-	}
-	:	//(options{backtrack=true;}:
-		(
-			{qualifiedItemIsOneOf(qiType|qiCtor,0)}?
-			 s = qualified_type
-		|
-		//lbl_ts changed by V3-Author
-			('typename'|'enum'| lbl_ts = class_specifier {ts=lbl_ts;}) 
-			 s = qualified_type
-			{declaratorID($s.text->chars,qiType);}	// This stores typename name in dictionary
-		|	
-			(	'char'		{ts |= tsCHAR;}
-			|	'wchar_t'	{ts |= tsWCHAR_T;}  
-			|	'bool'		{ts |= tsBOOL;}
-			|	'short'		{ts |= tsSHORT;}
-			|	'int'		{ts |= tsINT;}
-			|	('_int8'|'__int8')		{ts |= tsINT;}
-			|	('_int16'|'__int16')	{ts |= tsINT;}
-			|	('_int32'|'__int32')	{ts |= tsLONG;}
-			|	('_int64'|'__int64')	{ts |= tsLONG;}
-			|	('_w64'|'__w64')		{ts |= tsLONG;}
-			|	'long'		{ts |= tsLONG;}
-			|	'signed'	{ts |= tsSIGNED;}
-			|	'unsigned'	{ts |= tsUNSIGNED;}
-			|	'float'		{ts |= tsFLOAT;}
-			|	'double'	{ts |= tsDOUBLE;}
-			|	'void'		{ts |= tsVOID;}
-			)+
-		)
-		//)
-	;
+  @init
+  {
+  //char *s;
+  ts = tsInvalid; 
+  }
+  :  //(options{backtrack=true;}:
+    (
+      {qualifiedItemIsOneOf(qiType|qiCtor,0)}?
+       s = qualified_type
+    |
+    //lbl_ts changed by V3-Author
+      (TypeName|Enum| lbl_ts = class_specifier {ts=lbl_ts;}) 
+       s = qualified_type
+      {declaratorID($s.text->chars,qiType);}  // This stores typename name in dictionary
+    |  
+      (  Char    {ts |= tsChar;}
+      |  WChar_T  {ts |= tsWChar_T;}  
+      |  Bool    {ts |= tsBool;}
+      |  Short    {ts |= tsShort;}
+      |  Int    {ts |= tsInt;}
+      |  Long    {ts |= tsLong;}
+      |  Signed  {ts |= tsSigned;}
+      |  Unsigned  {ts |= tsUnsigned;}
+      |  Float    {ts |= tsFloat;}
+      |  Double  {ts |= tsDouble;}
+      |  Void    {ts |= tsVoid;}
+      )+
+    )
+    //)
+  ;
 
 //qualified_type
 qualified_type returns [char* qit]
-	@init
-	{
-	//char *so = NULL;
-	 char qitem01[1024];//CPPParser_MaxQualifiedItemSize+1];
-	 qitem01[0] = '\0';
-	}
-	: 
-		// JEL 3/29/96 removed this predicate and moved it upwards to
-		// simple_type_specifier.  This was done to allow parsing of ~ID to 
-		// be a unary_expression, which was never reached with this 
-		// predicate on
-		// {qualifiedItemIsOneOf(qiType|qiCtor,0)}?
+  @init
+  {
+  //char *so = NULL;
+   char qitem01[1024];//CPPParser_MaxQualifiedItemSize+1];
+   qitem01[0] = '\0';
+  }
+  : 
+    // JEL 3/29/96 removed this predicate and moved it upwards to
+    // simple_type_specifier.  This was done to allow parsing of ~ID to 
+    // be a unary_expression, which was never reached with this 
+    // predicate on
+    // {qualifiedItemIsOneOf(qiType|qiCtor,0)}?
 
-		so=scope_override 
-		{
-		if(NULL!=(char*)$so.text->chars)
-		 strcpy(qitem01, (char*)$so.text->chars);
-		}
-		id=ID 
-		{
-		 strcat(qitem01, (char*)$id.text->chars);
-		 $qit = qitem01;
-		}
-		(//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-		 LESSTHAN template_argument_list GREATERTHAN
-		)?
-	;
+    so=scope_override 
+    {
+    if(NULL!=(char*)$so.text->chars)
+     strcpy(qitem01, (char*)$so.text->chars);
+    }
+    id=ID 
+    {
+     strcat(qitem01, (char*)$id.text->chars);
+     $qit = qitem01;
+    }
+    (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
+     LessThan template_argument_list GreaterThan
+    )?
+  ;
 
 //class_specifier
 class_specifier returns [TypeSpecifier ts]
-	@init
-	{
-	 ts = tsInvalid;
-	}
-	:	
-		('class'	{ts = tsCLASS;}	
-		|'struct'	{ts = tsSTRUCT;}
-		|'union'	{ts = tsUNION;}
-		)
-	;
+  @init
+  {
+   ts = tsInvalid;
+  }
+  :  
+    (Class  {ts = tsClass;}  
+    |Struct  {ts = tsStruct;}
+    |Union  {ts = tsUnion;}
+    )
+  ;
 
 //type_qualifier
 type_qualifier returns [TypeQualifier tq] // aka cv_qualifier
-	@init
-	{
-	 tq = tsInvalid;
-	}
-	:  
-		('const'	{tq = tqCONST;} 
-		|'volatile'	{tq = tqVOLATILE;}
-		)
-	;
+  @init
+  {
+   tq = tsInvalid;
+  }
+  :  
+    (Const  {tq = tqConst;} 
+    |Volatile  {tq = tqVolatile;}
+    )
+  ;
 
 
 //class_decl_or_def
 class_decl_or_def [FunctionSpecifier fs] 
-	@init
-	{char *saveClass; 
-	// char *id;
-	char qid[1024+1];//CPPParser_MaxQualifiedItemSize+1];
-	TypeSpecifier ts = tsInvalid;	// Available for use
-	}
-	:	
-		('class'	{ts = tsCLASS;}	
-		|'struct'	{ts = tsSTRUCT;}
-		|'union'	{ts = tsUNION;}
-		)
-		(('_declspec'|'__declspec') LPAREN expression RPAREN)*	// Temp for Evgeniy
-		(	id = qualified_id
-			{strcpy(qid,(char*)$id.text->chars);}
-			(//{dummyVar}? //added by V3-Author //options{generateAmbigWarnings = false;}:
-				(SEMICOLON|member_declarator)=>
-				// Empty 
-				{classForwardDeclaration(qid, ts, fs);}	// This stores class name in dictionary
-			|
-				(base_clause)?
-				LCURLY
-				{saveClass = enclosingClass; enclosingClass = "symbols->strdup(qid)"; 
-				 beginClassDefinition(qid, ts);}	// This stores class name in dictionary
-				(member_declaration)*
-				{endClassDefinition();}
-				RCURLY
-				{enclosingClass = saveClass;}
-			)
-		|
-			LCURLY
-			{saveClass = enclosingClass; enclosingClass = "__anonymous";
-			 beginClassDefinition("anonymous", ts);}	// This stores "anonymous" name in dictionary
-			(member_declaration)*
-			{endClassDefinition();}
-			RCURLY
-			{enclosingClass = saveClass;}
-		)
-	;
+  @init
+  {char *saveClass; 
+  // char *id;
+  char qid[1024+1];//CPPParser_MaxQualifiedItemSize+1];
+  TypeSpecifier ts = tsInvalid;  // Available for use
+  }
+  :  
+    (Class  {ts = tsClass;}  
+    |Struct  {ts = tsStruct;}
+    |Union  {ts = tsUnion;}
+    )
+    (DeclSpec LParen expression RParen)*  // Temp for Evgeniy
+    (  id = qualified_id
+      {strcpy(qid,(char*)$id.text->chars);}
+      (//{dummyVar}? //added by V3-Author //options{generateAmbigWarnings = false;}:
+        (SemiColon|member_declarator)=>
+        // Empty 
+        {classForwardDeclaration(qid, ts, fs);}  // This stores class name in dictionary
+      |
+        (base_clause)?
+        LCurly
+        {saveClass = enclosingClass; enclosingClass = "symbols->strdup(qid)"; 
+         beginClassDefinition(qid, ts);}  // This stores class name in dictionary
+        (member_declaration)*
+        {endClassDefinition();}
+        RCurly
+        {enclosingClass = saveClass;}
+      )
+    |
+      LCurly
+      {saveClass = enclosingClass; enclosingClass = "__anonymous";
+       beginClassDefinition("anonymous", ts);}  // This stores "anonymous" name in dictionary
+      (member_declaration)*
+      {endClassDefinition();}
+      RCurly
+      {enclosingClass = saveClass;}
+    )
+  ;
 
 //base_clause
 base_clause
-	:	
-		COLON base_specifier (COMMA base_specifier)*
-	;
+  :  
+    Colon base_specifier (Comma base_specifier)*
+  ;
 
 //base_specifier
 base_specifier
-	//{char *qt;}
-	:	
-		(	'virtual' (access_specifier)? qt = qualified_type 
-		|	access_specifier ('virtual')? qt = qualified_type
-		|	qt = qualified_type
-		)
-	;
+  //{char *qt;}
+  :  
+    (  Virtual (access_specifier)? qt = qualified_type 
+    |  access_specifier (Virtual)? qt = qualified_type
+    |  qt = qualified_type
+    )
+  ;
 
 //access_specifier
 access_specifier
-	:	
-		(	'public'
-		|	'protected'
-		|	'private'
-		)
-	;
+  :  
+    (  Public
+    |  Protected
+    |  Private
+    )
+  ;
 
 //enum_specifier
 enum_specifier
-	//{char *id;}
-	:	
-		'enum'
-		(	
-			LCURLY enumerator_list RCURLY
-		|	
-			id = qualified_id
-			{beginEnumDefinition((char*)$id.text->chars);}	// This stores id name as an enum type in dictionary
-			(LCURLY enumerator_list RCURLY)?
-			{endEnumDefinition();}
-		)
-	;
+  //{char *id;}
+  :  
+    Enum
+    (  
+      LCurly enumerator_list RCurly
+    |  
+      id = qualified_id
+      {beginEnumDefinition((char*)$id.text->chars);}  // This stores id name as an enum type in dictionary
+      (LCurly enumerator_list RCurly)?
+      {endEnumDefinition();}
+    )
+  ;
 
 //enumerator_list
 enumerator_list
-	:	
-		enumerator (COMMA (enumerator)? )*	// Allows comma at end of list
-	;
+  :  
+    enumerator (Comma (enumerator)? )*  // Allows comma at end of list
+  ;
 
 //enumerator
 enumerator
-	:	
-		id=ID (ASSIGNEQUAL constant_expression)?
-		{enumElement((char*)($id.text->chars));}	// This stores id name in dictionary
-	;
+  :  
+    id=ID (Assign constant_expression)?
+    {enumElement((char*)($id.text->chars));}  // This stores id name in dictionary
+  ;
 
 
 
 
 // This matches a generic qualified identifier ::T::B::foo
- // (including OPERATOR).
+ // (including Operator).
  // It might be a good idea to put T::~dtor in here
  // as well, but id_expression in expr.g puts it in manually.
  // Maybe not, 'cause many people use this assuming only A::B.
@@ -1019,31 +1017,31 @@ enumerator
 //
 //qualified_id
 qualified_id returns [char* qid]
-	@init
-	{
-	//char *so = NULL;
-	//char *op = NULL;
-	char qitem02[1024+1];//CPPParser_MaxQualifiedItemSize+1];
-	qitem02[0] = '\0';
-	}
-	:	
-		so =  scope_override
-		{ 
-		if ( (char*)$so.text->chars ) { strcpy(qitem02, (char*)$so.text->chars); }
-		} 
-		(	id=ID {strcat(qitem02,(char*)($id.text->chars)); /*printf("\%s \n", (char*)$id.text->chars);*/ }
-			((LESSTHAN template_argument_list GREATERTHAN)=>
-			  LESSTHAN template_argument_list GREATERTHAN)? // {strcat(qitem02,"<...>");}
-		|  
-			OPERATOR op=optor
-			{strcat(qitem02,"operator"); strcat(qitem02,(char*)$op.text->chars);}
-		|
-			TILDE id_expression		// 1/08/07
-		)
-		{
-		 $qid = qitem02;
-		}
-	;
+  @init
+  {
+  //char *so = NULL;
+  //char *op = NULL;
+  char qitem02[1024+1];//CPPParser_MaxQualifiedItemSize+1];
+  qitem02[0] = '\0';
+  }
+  :  
+    so =  scope_override
+    { 
+    if ( (char*)$so.text->chars ) { strcpy(qitem02, (char*)$so.text->chars); }
+    } 
+    (  id=ID {strcat(qitem02,(char*)($id.text->chars)); /*printf("\%s \n", (char*)$id.text->chars);*/ }
+      ((LessThan template_argument_list GreaterThan)=>
+        LessThan template_argument_list GreaterThan)? // {strcat(qitem02,"<...>");}
+    |  
+      Operator op=optor
+      {strcat(qitem02,"operator"); strcat(qitem02,(char*)$op.text->chars);}
+    |
+      Tilde id_expression    // 1/08/07
+    )
+    {
+     $qid = qitem02;
+    }
+  ;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1052,206 +1050,206 @@ qualified_id returns [char* qid]
 
 //typeID
 typeID
-	:	
-		{isTypeName((char*)LT(1)->getText(LT(1))->chars)}?
-		ID
-	;
+  :  
+    {isTypeName((char*)LT(1)->getText(LT(1))->chars)}?
+    ID
+  ;
 
 //init_declarator_list
 init_declarator_list
-	:	
-		member_declarator (COMMA member_declarator)*
-	;
+  :  
+    member_declarator (Comma member_declarator)*
+  ;
 
 //member_declarator
 member_declarator
-	:	
-		((ID)? COLON constant_expression)=>(ID)? COLON constant_expression
-	|  
-		declarator
-		(
-			(ASSIGNEQUAL OCTALINT SEMICOLON)=> ASSIGNEQUAL OCTALINT	// The value must be zero (for pure virtual)
-		|	
-			ASSIGNEQUAL 
-			initializer
-		|	
-			LPAREN expression_list RPAREN // member function / method declaration
-		)?
-	;
+  :  
+    ((ID)? Colon constant_expression)=>(ID)? Colon constant_expression
+  |  
+    declarator
+    (
+      (Assign OCTALInt SemiColon)=> Assign OCTALInt  // The value must be zero (for pure virtual)
+    |  
+      Assign 
+      initializer
+    |  
+      LParen expression_list RParen // member function / method declaration
+    )?
+  ;
 
 //initializer
 initializer
-	:	
-		remainder_expression	// assignment_expression
-	|	
-		LCURLY initializer (COMMA (initializer)? )* RCURLY	// Allows comma at end of list
-	;
+  :  
+    remainder_expression  // assignment_expression
+  |  
+    LCurly initializer (Comma (initializer)? )* RCurly  // Allows comma at end of list
+  ;
 
 //declarator
 declarator
-	:
-		(ptr_operator)=> ptr_operator	// AMPERSAND or STAR etc.
-		declarator
-	|	
-		direct_declarator
-	;
+  :
+    (ptr_operator)=> ptr_operator  // Ampersand or Star etc.
+    declarator
+  |  
+    direct_declarator
+  ;
 
 //direct_declarator
 direct_declarator
-	//{
-	//char *id;
-	//CPPParser::TypeQualifier tq;
-	//}
-	:	
-		(qualified_id LPAREN (RPAREN|declaration_specifiers) )=>	// Must be function declaration
-		id = qualified_id
-		{if (_td==TRUE)       // This statement is a typedef   
-			declaratorID($id.text->chars,qiType);
-		 else
-			declaratorID($id.text->chars,qiFun);
-		}
-		LPAREN {declaratorParameterList(0);}
-		(parameter_list)?
-		RPAREN {declaratorEndParameterList(0);}
-		(tq = type_qualifier)*
-		(exception_specification)?
-	|	
-		(qualified_id LPAREN qualified_id)=>	// Must be class instantiation
-		id = qualified_id
-		{//printf("01\n");
-		declaratorID($id.text->chars,qiVar);}
-		LPAREN
-		expression_list
-		RPAREN
-	|
-		(qualified_id LSQUARE)=>	// Must be array declaration
-		id = qualified_id
-		{//printf("02\n");
-		if (_td==TRUE)       // This statement is a typedef   
-			declaratorID($id.text->chars,qiType);	// This statement is a typedef
-		 else 
-			declaratorID($id.text->chars,qiVar);
-		 is_address = FALSE; is_pointer = FALSE;
-		}
-		(//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-		 LSQUARE (constant_expression)? RSQUARE)+
-		{declaratorArray();}
-	|
-		(qualified_id RPAREN LPAREN)=>	// Must be function declaration (see function_direct_declarator)
-		id = qualified_id
-		{
-		if (_td==TRUE)       // This statement is a typedef   
-			declaratorID($id.text->chars,qiType);	// This statement is a typedef
-		 else
-			declaratorID($id.text->chars,qiFun);
-		 is_address = FALSE; is_pointer = FALSE;
-		}
-	|
-		id = qualified_id
-		{//printf("03\n");
-		if (_td==TRUE)
-			{
-			declaratorID($id.text->chars,qiType);	// This statement is a typedef
-			}
-		 else
-			declaratorID($id.text->chars,qiVar);
-		 is_address = FALSE; is_pointer = FALSE;
-		}
-	|	
-		LPAREN declarator RPAREN 
-		(//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-		 declarator_suffix)? // DW 1/9/04 declarator_suffix made optional as failed on line 2956 in metrics.i
-	;					// According to the grammar a declarator_suffix is not required here
+  //{
+  //char *id;
+  //CPPParser::TypeQualifier tq;
+  //}
+  :  
+    (qualified_id LParen (RParen|declaration_specifiers) )=>  // Must be function declaration
+    id = qualified_id
+    {if (_td==True)       // This statement is a typedef   
+      declaratorID($id.text->chars,qiType);
+     else
+      declaratorID($id.text->chars,qiFun);
+    }
+    LParen {declaratorParameterList(0);}
+    (parameter_list)?
+    RParen {declaratorEndParameterList(0);}
+    (tq = type_qualifier)*
+    (exception_specification)?
+  |  
+    (qualified_id LParen qualified_id)=>  // Must be class instantiation
+    id = qualified_id
+    {//printf("01\n");
+    declaratorID($id.text->chars,qiVar);}
+    LParen
+    expression_list
+    RParen
+  |
+    (qualified_id LSquare)=>  // Must be array declaration
+    id = qualified_id
+    {//printf("02\n");
+    if (_td==True)       // This statement is a typedef   
+      declaratorID($id.text->chars,qiType);  // This statement is a typedef
+     else 
+      declaratorID($id.text->chars,qiVar);
+     is_address = False; is_pointer = False;
+    }
+    (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
+     LSquare (constant_expression)? RSquare)+
+    {declaratorArray();}
+  |
+    (qualified_id RParen LParen)=>  // Must be function declaration (see function_direct_declarator)
+    id = qualified_id
+    {
+    if (_td==True)       // This statement is a typedef   
+      declaratorID($id.text->chars,qiType);  // This statement is a typedef
+     else
+      declaratorID($id.text->chars,qiFun);
+     is_address = False; is_pointer = False;
+    }
+  |
+    id = qualified_id
+    {//printf("03\n");
+    if (_td==True)
+      {
+      declaratorID($id.text->chars,qiType);  // This statement is a typedef
+      }
+     else
+      declaratorID($id.text->chars,qiVar);
+     is_address = False; is_pointer = False;
+    }
+  |  
+    LParen declarator RParen 
+    (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
+     declarator_suffix)? // DW 1/9/04 declarator_suffix made optional as failed on line 2956 in metrics.i
+  ;          // According to the grammar a declarator_suffix is not required here
 
 //declarator_suffix
-declarator_suffix		// Note: Only used above in direct_declarator
-	//{CPPParser::TypeQualifier tq;}  
-	:
-	(	
-		//(options {warnWhenFollowAmbig = false;}:
-		(LSQUARE (constant_expression)? RSQUARE)+
-		{declaratorArray();}
-	|	
-		{(!((LA(1)==LPAREN)&&(LA(2)==ID))||(qualifiedItemIsOneOf(qiType|qiCtor,1)))}?
-		LPAREN {declaratorParameterList(0);}
-		(parameter_list)?
-				RPAREN {declaratorEndParameterList(0);}
-		(tq = type_qualifier)*
-		(exception_specification)?
-	)
-	;
+declarator_suffix    // Note: Only used above in direct_declarator
+  //{CPPParser::TypeQualifier tq;}  
+  :
+  (  
+    //(options {warnWhenFollowAmbig = false;}:
+    (LSquare (constant_expression)? RSquare)+
+    {declaratorArray();}
+  |  
+    {(!((LA(1)==LParen)&&(LA(2)==ID))||(qualifiedItemIsOneOf(qiType|qiCtor,1)))}?
+    LParen {declaratorParameterList(0);}
+    (parameter_list)?
+        RParen {declaratorEndParameterList(0);}
+    (tq = type_qualifier)*
+    (exception_specification)?
+  )
+  ;
 
 
 
-	//{CPPParser::TypeQualifier tq;}
-	//conversion_function_decl_or_def
+  //{CPPParser::TypeQualifier tq;}
+  //conversion_function_decl_or_def
 conversion_function_decl_or_def
-	:
-		OPERATOR declaration_specifiers (STAR | AMPERSAND)?	// DW 01/08/03 Use type_specifier here? see syntax
-		( LESSTHAN template_parameter_list GREATERTHAN /*{wasInTemplate=FALSE;}*/ )?
-		LPAREN (parameter_list)? RPAREN
-		(tq = type_qualifier)*	// DW 29/07/05 ? changed to *
-		(exception_specification)?
-		(	compound_statement
-		|	SEMICOLON {end_of_stmt();}
-		)
-	;
+  :
+    Operator declaration_specifiers (Star | Ampersand)?  // DW 01/08/03 Use type_specifier here? see syntax
+    ( LessThan template_parameter_list GreaterThan /*{wasInTemplate=False;}*/ )?
+    LParen (parameter_list)? RParen
+    (tq = type_qualifier)*  // DW 29/07/05 ? changed to *
+    (exception_specification)?
+    (  compound_statement
+    |  SemiColon {end_of_stmt();}
+    )
+  ;
 
  //function_declarator
 function_declarator [int definition]
-	:	
-		(ptr_operator)=> ptr_operator function_declarator[definition]
-	|	
-		function_direct_declarator[definition]
-	;
+  :  
+    (ptr_operator)=> ptr_operator function_declarator[definition]
+  |  
+    function_direct_declarator[definition]
+  ;
 
 //function_direct_declarator
 function_direct_declarator [int definition] 
-	//{
-	//char *q;
-	//CPPParser::TypeQualifier tq;
-	//}
-	:
-		(	// fix prompted by (isdigit)() in xlocnum
-			LPAREN 
-			declarator
-			RPAREN
-		|
-			q = qualified_id
-			{
-			declaratorID($q.text->chars,qiFun);
-			}
-		)
+  //{
+  //char *q;
+  //CPPParser::TypeQualifier tq;
+  //}
+  :
+    (  // fix prompted by (isdigit)() in xlocnum
+      LParen 
+      declarator
+      RParen
+    |
+      q = qualified_id
+      {
+      declaratorID($q.text->chars,qiFun);
+      }
+    )
 
-		{		
-		#ifdef MYCODE
-		if (definition)
-			myCode_function_direct_declarator(q);
-		#endif MYCODE
-		}
+    {    
+    #ifdef MYCODE
+    if (definition)
+      myCode_function_direct_declarator(q);
+    #endif MYCODE
+    }
 
-		LPAREN 
-		{
-		functionParameterList();
-		if (K_and_R == TRUE)
-			in_parameter_list = FALSE;
-		else
-			in_parameter_list = TRUE;
-		}
-		(parameter_list)? 
-		{
-		if (K_and_R == TRUE)
-	  		in_parameter_list = TRUE;
-		else
-			in_parameter_list = FALSE;
-		}
-		RPAREN
-		(//{dummyVar}? //added by V3-Author //options{warnWhenFollowAmbig = false;}:
-		 tq = type_qualifier)*
-		(ASSIGNEQUAL OCTALINT)?	// The value of the octal must be 0
-		{functionEndParameterList(definition);}
-		(exception_specification)?
-	;
+    LParen 
+    {
+    functionParameterList();
+    if (K_and_R == True)
+      in_parameter_list = False;
+    else
+      in_parameter_list = True;
+    }
+    (parameter_list)? 
+    {
+    if (K_and_R == True)
+        in_parameter_list = True;
+    else
+      in_parameter_list = False;
+    }
+    RParen
+    (//{dummyVar}? //added by V3-Author //options{warnWhenFollowAmbig = false;}:
+     tq = type_qualifier)*
+    (Assign OCTALInt)?  // The value of the octal must be 0
+    {functionEndParameterList(definition);}
+    (exception_specification)?
+  ;
 
 
 
@@ -1264,148 +1262,148 @@ function_direct_declarator [int definition]
 
 //ctor_definition
 ctor_definition 
-	:
-		ctor_head
-		ctor_body
-		{endConstructorDefinition();}
-	;
+  :
+    ctor_head
+    ctor_body
+    {endConstructorDefinition();}
+  ;
 
 //ctor_head
 ctor_head 
-	:
-		ctor_decl_spec
-		ctor_declarator[1]
-	;
+  :
+    ctor_decl_spec
+    ctor_declarator[1]
+  ;
 
 //ctor_decl_spec
 ctor_decl_spec
-	:
-		(('inline'|'_inline'|'__inline')|'explicit')*
-	;
+  :
+    (Inline|Explicit)*
+  ;
 
 //ctor_declarator
 ctor_declarator[int definition]
-	: 
-		q = qualified_ctor_id
-		{declaratorParameterList(definition);}
-		LPAREN (parameter_list)? RPAREN
-		{declaratorEndParameterList(definition);}
-		(exception_specification)?
-	;
+  : 
+    q = qualified_ctor_id
+    {declaratorParameterList(definition);}
+    LParen (parameter_list)? RParen
+    {declaratorEndParameterList(definition);}
+    (exception_specification)?
+  ;
 
 
 // This matches a generic qualified identifier ::T::B::foo
 // that is satisfactory for a ctor (no operator, no trailing <>)
 qualified_ctor_id returns [char* q]
-	@init
-	{
-	char qitem03[1024+1];//CPPParser_MaxQualifiedItemSize+1];
-	qitem03[0] = '\0';
-	q = NULL;
-	}
-	: 
-		so = scope_override
-		{strcpy(qitem03, (char*)$so.text->chars);}
-		id=ID	// DW 24/05/04 Note. Neither Ctor or Dtor recorded in dictionary
-		{strcat(qitem03, (char*)($id.text->chars));
-		$q = qitem03;
-		//printf("CPP_parser.g qualified_ctor_id q \%s\n",q);
-		} 
-	;
+  @init
+  {
+  char qitem03[1024+1];//CPPParser_MaxQualifiedItemSize+1];
+  qitem03[0] = '\0';
+  q = NULL;
+  }
+  : 
+    so = scope_override
+    {strcpy(qitem03, (char*)$so.text->chars);}
+    id=ID  // DW 24/05/04 Note. Neither Ctor or Dtor recorded in dictionary
+    {strcat(qitem03, (char*)($id.text->chars));
+    $q = qitem03;
+    //printf("CPP_parser.g qualified_ctor_id q \%s\n",q);
+    } 
+  ;
 
 //ctor_body
 ctor_body
-	:
-		(ctor_initializer)?
-		compound_statement
-	;
+  :
+    (ctor_initializer)?
+    compound_statement
+  ;
 
 //ctor_initializer
 ctor_initializer
-	:
-		COLON superclass_init (COMMA superclass_init)*
-	;
+  :
+    Colon superclass_init (Comma superclass_init)*
+  ;
 
 //superclass_init
 superclass_init
-	//{char *q;} 
-	: 
-		q = qualified_id LPAREN (expression_list)? RPAREN
-	;
+  //{char *q;} 
+  : 
+    q = qualified_id LParen (expression_list)? RParen
+  ;
 
 //dtor_head
 dtor_head[int definition]
-	:
-		dtor_decl_spec
-		dtor_declarator[definition]
-	;
+  :
+    dtor_decl_spec
+    dtor_declarator[definition]
+  ;
 
 //dtor_decl_spec
 dtor_decl_spec
-	:
-		(('inline'|'_inline'|'__inline'|'virtual')*)
-	;
+  :
+    (Inline|Virtual)*
+  ;
 
 //dtor_declarator
 dtor_declarator[int definition]
-	//{char *s;}
-	:	
-		s = scope_override
-		TILDE ID
-		{declaratorParameterList(definition);}
-		LPAREN ('void')? RPAREN
-		{declaratorEndParameterList(definition);}
-		(exception_specification)?
-	;
+  //{char *s;}
+  :  
+    s = scope_override
+    Tilde ID
+    {declaratorParameterList(definition);}
+    LParen (Void)? RParen
+    {declaratorEndParameterList(definition);}
+    (exception_specification)?
+  ;
 
 //dtor_body
 dtor_body
-	:
-		compound_statement
-		{endDestructorDefinition();}
-	;
+  :
+    compound_statement
+    {endDestructorDefinition();}
+  ;
 
 //parameter_list
 parameter_list
-	:	
-		parameter_declaration_list (ELLIPSIS)?
-	;
+  :  
+    parameter_declaration_list (Ellipsis)?
+  ;
 
 //parameter_declaration_list
 parameter_declaration_list
-	:	
-		(parameter_declaration (COMMA parameter_declaration)* )
-	;
+  :  
+    (parameter_declaration (Comma parameter_declaration)* )
+  ;
 
-//parameter_declaration	(See also template_parameter_declaration) 
+//parameter_declaration  (See also template_parameter_declaration) 
 parameter_declaration
-	:	
-		{beginParameterDeclaration();}
-		(
-			{!((LA(1)==SCOPE) && (LA(2)==STAR||LA(2)==OPERATOR)) &&
-			 (!(LA(1)==SCOPE||LA(1)==ID) || qualifiedItemIsOneOf(qiType|qiCtor,0) )}?
-			
-			declaration_specifiers	// DW 24/3/98 Mods for K & R
-			(  
-				(declarator)=> declarator        // if arg name given
-			| 
-				abstract_declarator     // if arg name not given  // can be empty
-			)
-		|
-					(declarator)=> declarator			// DW 24/3/98 Mods for K & R
-		|
-			ELLIPSIS
-		)
-		(ASSIGNEQUAL 
-		 remainder_expression // DW 18/4/01 assignment_expression
-		)?
-	;
+  :  
+    {beginParameterDeclaration();}
+    (
+      {!((LA(1)==Scope) && (LA(2)==Star||LA(2)==Operator)) &&
+       (!(LA(1)==Scope||LA(1)==ID) || qualifiedItemIsOneOf(qiType|qiCtor,0) )}?
+      
+      declaration_specifiers  // DW 24/3/98 Mods for K & R
+      (  
+        (declarator)=> declarator        // if arg name given
+      | 
+        abstract_declarator     // if arg name not given  // can be empty
+      )
+    |
+          (declarator)=> declarator      // DW 24/3/98 Mods for K & R
+    |
+      Ellipsis
+    )
+    (Assign 
+     remainder_expression // DW 18/4/01 assignment_expression
+    )?
+  ;
 
 //type_id
 type_id
-	:
-		declaration_specifiers abstract_declarator
-	;
+  :
+    declaration_specifiers abstract_declarator
+  ;
 
 // This rule looks a bit weird because (...) can happen in two
 // places within the declaration such as "void (*)()" (ptr to
@@ -1418,59 +1416,59 @@ type_id
  //
 //abstract_declarator
 abstract_declarator
-	:	
-		ptr_operator abstract_declarator 
-	|	
-		(LPAREN abstract_declarator RPAREN (LSQUARE|LPAREN) )=> LPAREN abstract_declarator RPAREN
-		(//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-		abstract_declarator_suffix)
-	|	
-		(//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-		abstract_declarator_suffix)?
-	;
+  :  
+    ptr_operator abstract_declarator 
+  |  
+    (LParen abstract_declarator RParen (LSquare|LParen) )=> LParen abstract_declarator RParen
+    (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
+    abstract_declarator_suffix)
+  |  
+    (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
+    abstract_declarator_suffix)?
+  ;
 
 //abstract_declarator_suffix
 abstract_declarator_suffix
-	:	
-		(LSQUARE (constant_expression)? RSQUARE)+
-		{declaratorArray();}
-	|
-		LPAREN
-		{declaratorParameterList(0);}
-		(parameter_list)?
-		RPAREN
-		{declaratorEndParameterList(0);}
-		cv_qualifier_seq
-		(exception_specification)?
-	;
+  :  
+    (LSquare (constant_expression)? RSquare)+
+    {declaratorArray();}
+  |
+    LParen
+    {declaratorParameterList(0);}
+    (parameter_list)?
+    RParen
+    {declaratorEndParameterList(0);}
+    cv_qualifier_seq
+    (exception_specification)?
+  ;
 
 //exception_specification
 exception_specification
-	//{char *so;}
-	:	
-		'throw'
-		LPAREN 
-		(	(so = scope_override ID (COMMA so = scope_override ID)* )? 
-		|	ELLIPSIS
-		)
-		RPAREN
-	;
+  //{char *so;}
+  :  
+    Throw
+    LParen 
+    (  (so = scope_override ID (Comma so = scope_override ID)* )? 
+    |  Ellipsis
+    )
+    RParen
+  ;
 
 //template_head
 template_head
-	:	
-		TEMPLATE
-		LESSTHAN template_parameter_list GREATERTHAN
-	;
+  :  
+    Template
+    LessThan template_parameter_list GreaterThan
+  ;
 
 //template_parameter_list
 template_parameter_list
-	:	
-		{ //wasInTemplate=TRUE;
-		beginTemplateParameterList();}
-		template_parameter (COMMA template_parameter)*
-		{endTemplateParameterList();}
-	;
+  :  
+    { //wasInTemplate=True;
+    beginTemplateParameterList();}
+    template_parameter (Comma template_parameter)*
+    {endTemplateParameterList();}
+  ;
 
 // Rule requires >2 lookahead tokens. The ambiguity is resolved 
 // correctly, however. According to the manual "...A template argument
@@ -1482,90 +1480,90 @@ template_parameter_list
  //
 //template_parameter
 template_parameter
-	:	
-		(//{dummyVar}? //added by V3-Author //options{generateAmbigWarnings = false;}:
-		 type_parameter
-		|
-		 (parameter_declaration)=>
-		  parameter_declaration
-		|
-		 template_parameter_declaration
-		)
-	;
+  :  
+    (//{dummyVar}? //added by V3-Author //options{generateAmbigWarnings = false;}:
+     type_parameter
+    |
+     (parameter_declaration)=>
+      parameter_declaration
+    |
+     template_parameter_declaration
+    )
+  ;
 
 //type_parameter
 type_parameter
-	:
-		(	
-			('class'|'typename') 
-			(id=ID
-				{
-				templateTypeParameter((char*)$id.text->chars);
-				}
-				(ASSIGNEQUAL assigned_type_name)?
-			)?
-		|
-			template_head 'class' 
-			(id2=ID
-				{
-				templateTypeParameter((char*)$id2.text->chars);
-				}
-				(ASSIGNEQUAL assigned_type_name)?
-			)?
-		)
-	;
+  :
+    (  
+      (Class|TypeName) 
+      (id=ID
+        {
+        templateTypeParameter((char*)$id.text->chars);
+        }
+        (Assign assigned_type_name)?
+      )?
+    |
+      template_head Class
+      (id2=ID
+        {
+        templateTypeParameter((char*)$id2.text->chars);
+        }
+        (Assign assigned_type_name)?
+      )?
+    )
+  ;
 
 // This is to allow an assigned type_name in a template parameter
-//	list to be defined previously in the same parameter list,
-//	as type setting is ineffective whilst guessing
+//  list to be defined previously in the same parameter list,
+//  as type setting is ineffective whilst guessing
  //
 //assigned_type_name
 assigned_type_name
-	//{char* qt; TypeSpecifier ts;}
-	:
-		(//{dummyVar}? //added by V3-Author //options{generateAmbigWarnings = false;}:
-			qt = qualified_type abstract_declarator	
-		|
-			ts = simple_type_specifier abstract_declarator
-		)
-	;
+  //{char* qt; TypeSpecifier ts;}
+  :
+    (//{dummyVar}? //added by V3-Author //options{generateAmbigWarnings = false;}:
+      qt = qualified_type abstract_declarator  
+    |
+      ts = simple_type_specifier abstract_declarator
+    )
+  ;
 
-//template_parameter_declaration	(See also parameter_declaration)
+//template_parameter_declaration  (See also parameter_declaration)
 template_parameter_declaration
-	:	
-		{beginParameterDeclaration();}
-		(
-			{!((LA(1)==SCOPE) && (LA(2)==STAR||LA(2)==OPERATOR)) &&
-			 (!(LA(1)==SCOPE||LA(1)==ID) || qualifiedItemIsOneOf(qiType|qiCtor,0) )}?
-			
-			declaration_specifiers	// DW 24/3/98 Mods for K & R
-			(  
-				(declarator)=> declarator        // if arg name given
-			| 
-				abstract_declarator     // if arg name not given  // can be empty
-			)
-		|
-			(declarator)=> declarator			// DW 24/3/98 Mods for K & R
-		|
-			ELLIPSIS
-		)
-		(ASSIGNEQUAL
-		 additive_expression	// DW 04/09/07 because of ambiguity of ">"
-		)?
-	;
+  :  
+    {beginParameterDeclaration();}
+    (
+      {!((LA(1)==Scope) && (LA(2)==Star||LA(2)==Operator)) &&
+       (!(LA(1)==Scope||LA(1)==ID) || qualifiedItemIsOneOf(qiType|qiCtor,0) )}?
+      
+      declaration_specifiers  // DW 24/3/98 Mods for K & R
+      (  
+        (declarator)=> declarator        // if arg name given
+      | 
+        abstract_declarator     // if arg name not given  // can be empty
+      )
+    |
+      (declarator)=> declarator      // DW 24/3/98 Mods for K & R
+    |
+      Ellipsis
+    )
+    (Assign
+     additive_expression  // DW 04/09/07 because of ambiguity of ">"
+    )?
+  ;
 
 // This rule refers to an instance of a template class or function
 //template_id
-template_id	// aka template_class_name
-	:	
-		ID LESSTHAN template_argument_list GREATERTHAN
-	;
+template_id  // aka template_class_name
+  :  
+    ID LessThan template_argument_list GreaterThan
+  ;
 
 //template_argument_list
 template_argument_list
-	:	
-		template_argument (COMMA template_argument)*
-	;
+  :  
+    template_argument (Comma template_argument)*
+  ;
 
 // Here assignment_expression was changed to shift_expression to rule out
 //  x< 1<2 > which causes ambiguities. As a result, these can be used only
@@ -1574,13 +1572,13 @@ template_argument_list
  //
 //template_argument
 template_argument
-	:
-		// DW 07/04/05 This predicate only used here if next is SCOPE or ID
-		{( !(LA(1)==SCOPE||LA(1)==ID) || qualifiedItemIsOneOf(qiType|qiCtor,0) )}?
-		type_id
-	|	
-		shift_expression // failed in iosfwd
-	;
+  :
+    // DW 07/04/05 This predicate only used here if next is Scope or ID
+    {( !(LA(1)==Scope||LA(1)==ID) || qualifiedItemIsOneOf(qiType|qiCtor,0) )}?
+    type_id
+  |  
+    shift_expression // failed in iosfwd
+  ;
 
 
 
@@ -1592,188 +1590,188 @@ template_argument
 
 //statement_list
 statement_list
-	:	
-		(statement)+
-	;
+  :  
+    (statement)+
+  ;
 
 //statement
 statement
-	@init
-	{
-	lineNo = 0;
-	lineNo = LT(1)->line;
-	//FunctionSpecifier fs = fsInvalid;	// inline,virtual,explicit
-	}
-	// all {dummyVar}? are added by V3-Author
-	:
-		(	('namespace'|'using')=>
-			block_declaration
-		|	(('typedef')? class_specifier (qualified_id)? LCURLY)=>
-			 member_declaration
-		|	(declaration_specifiers 		   ((ptr_operator)=>ptr_operator)? qualified_id)=> //HERE//
-			 member_declaration
-		|	 (labeled_statement)=> 
-			 labeled_statement
-		|	 case_statement
-		|	 default_statement
-		|	 expression SEMICOLON {end_of_stmt();}
-		|	 compound_statement
-		|	 selection_statement
-		|	 iteration_statement
-		|	 jump_statement
-		|	 SEMICOLON {end_of_stmt();}
-		|	 try_block
-		|	 throw_statement
-			// The next two entries may be used for debugging
-			// Use this statement in the source code to turn antlr trace on (See note above)
-		|	'antlrTrace_on' {antlrTrace(TRUE);}
-			// Use this statement in the source code to turn antlr trace off (See note above)
-		|	'antlrTrace_off' {antlrTrace(FALSE);}
-		)
-	
-	;
+  @init
+  {
+  lineNo = 0;
+  lineNo = LT(1)->line;
+  //FunctionSpecifier fs = fsInvalid;  // inline,virtual,explicit
+  }
+  // all {dummyVar}? are added by V3-Author
+  :
+    (  (Namespace|USING)=>
+      block_declaration
+    |  ((TypeDef)? class_specifier (qualified_id)? LCurly)=>
+       member_declaration
+    |  (declaration_specifiers        ((ptr_operator)=>ptr_operator)? qualified_id)=> //HERE//
+       member_declaration
+    |   (labeled_statement)=> 
+       labeled_statement
+    |   case_statement
+    |   default_statement
+    |   expression SemiColon {end_of_stmt();}
+    |   compound_statement
+    |   selection_statement
+    |   iteration_statement
+    |   jump_statement
+    |   SemiColon {end_of_stmt();}
+    |   try_block
+    |   throw_statement
+      // The next two entries may be used for debugging
+      // Use this statement in the source code to turn antlr trace on (See note above)
+    |  'antlrTrace_on' {antlrTrace(True);}
+      // Use this statement in the source code to turn antlr trace off (See note above)
+    |  'antlrTrace_off' {antlrTrace(False);}
+    )
+  
+  ;
 
 //block_declaration
 block_declaration
-	:	simple_declaration
-	|	namespace_alias_definition
-	|	using_statement
-	;
+  :  simple_declaration
+  |  namespace_alias_definition
+  |  using_statement
+  ;
 
 //simple_declaration
 simple_declaration
-	:
-		declaration_specifiers (init_declarator_list)? SEMICOLON {end_of_stmt();}
-	;
+  :
+    declaration_specifiers (init_declarator_list)? SemiColon {end_of_stmt();}
+  ;
 
 //labeled_statement
 labeled_statement
-	:	
-		ID COLON statement
-	;
+  :  
+    ID Colon statement
+  ;
 
 //case_statement
 case_statement
-	:	'case'
-		constant_expression COLON statement
-	;
+  :  Case
+    constant_expression Colon statement
+  ;
 
 //default_statement
 default_statement
-	:	
-		'default' COLON statement
-	;
+  :  
+    Default Colon statement
+  ;
 
 //compound_statement
 compound_statement
-	:	
-		LCURLY 
-		{end_of_stmt();
-		 enterNewLocalScope();
-		}
-		(statement_list)?
-		RCURLY 
-		{exitLocalScope();}
-	;
+  :  
+    LCurly 
+    {end_of_stmt();
+     enterNewLocalScope();
+    }
+    (statement_list)?
+    RCurly 
+    {exitLocalScope();}
+  ;
 
-// NOTE: cannot remove ELSE ambiguity, but it parses correctly.
+// NOTE: cannot remove Else ambiguity, but it parses correctly.
 // The warning is removed with the options statement
 ///
 //selection_statement
 selection_statement
-	:	
-		'if' LPAREN 
-		{enterNewLocalScope();}
-		condition RPAREN
-		st1 = statement
-		(//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-		 'else' st2 = statement)?
-		{exitLocalScope();}
-	|	
-		'switch' LPAREN
-		{enterNewLocalScope();}
-		condition RPAREN statement
-		{exitLocalScope();}
-	;
+  :  
+    If LParen 
+    {enterNewLocalScope();}
+    condition RParen
+    st1 = statement
+    (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
+     Else st2 = statement)?
+    {exitLocalScope();}
+  |  
+    Switch LParen
+    {enterNewLocalScope();}
+    condition RParen statement
+    {exitLocalScope();}
+  ;
 
 //iteration_statement
 iteration_statement
-	:	
-		'while'	LPAREN
-		{enterNewLocalScope();}
-		condition RPAREN 
-		statement  
-		{exitLocalScope();}
-	|	
-		'do' 
-		{enterNewLocalScope();}
-		statement 'while'
-		LPAREN expression RPAREN 
-		{exitLocalScope();}
-		SEMICOLON {end_of_stmt();} 
-	|	
-		'for' LPAREN
-		{enterNewLocalScope();}
-		(	(declaration)=> declaration 
-		|	(expression)? SEMICOLON {end_of_stmt();}
-		)
-		(condition)? SEMICOLON {end_of_stmt();}
-		(expression)?
-		RPAREN statement	 
-		{exitLocalScope();}
-	;
+  :  
+    While  LParen
+    {enterNewLocalScope();}
+    condition RParen 
+    statement  
+    {exitLocalScope();}
+  |  
+    Do 
+    {enterNewLocalScope();}
+    statement While
+    LParen expression RParen 
+    {exitLocalScope();}
+    SemiColon {end_of_stmt();} 
+  |  
+    For LParen
+    {enterNewLocalScope();}
+    (  (declaration)=> declaration 
+    |  (expression)? SemiColon {end_of_stmt();}
+    )
+    (condition)? SemiColon {end_of_stmt();}
+    (expression)?
+    RParen statement   
+    {exitLocalScope();}
+  ;
 
 //condition
 condition
-	:
-		(	(declaration_specifiers declarator ASSIGNEQUAL)=> 
-			 declaration_specifiers declarator ASSIGNEQUAL remainder_expression
-		|	expression
-		)
-	;
+  :
+    (  (declaration_specifiers declarator Assign)=> 
+       declaration_specifiers declarator Assign remainder_expression
+    |  expression
+    )
+  ;
 
 //jump_statement
 jump_statement
-	:	
-		(	'goto' ID SEMICOLON {end_of_stmt();}
-		|	'continue' SEMICOLON {end_of_stmt();}
-		|	'break' SEMICOLON {end_of_stmt();}
-		|	// DW 16/05/03 May be problem here if return is followed by a cast expression 
-			'return' {in_return = TRUE;}
-			(	//{dummyVar}? //added by V3-Author //options{warnWhenFollowAmbig = false;}:
-			                                       // THE ,0 was added by V3-Author
-				(LPAREN {(qualifiedItemIsOneOf(qiType,0) )}? ID RPAREN)=> 
-				LPAREN ID RPAREN (expression)?	// This is an unsatisfactory fix for problem in xstring re 'return (allocator);'
-												//  and in xlocale re return (_E)(_Tolower((unsigned char)_C, &_Ctype));
-				//{printf("\%d CPP_parser.g jump_statement Return fix used\n",lineNo);}
-			|	expression 
-			)?	SEMICOLON {in_return = FALSE; end_of_stmt();} 
-		)
-	;
+  :  
+    (  Goto ID SemiColon {end_of_stmt();}
+    |  Continue SemiColon {end_of_stmt();}
+    |  Break SemiColon {end_of_stmt();}
+    |  // DW 16/05/03 May be problem here if return is followed by a cast expression 
+      Return {in_return = True;}
+      (  //{dummyVar}? //added by V3-Author //options{warnWhenFollowAmbig = false;}:
+                                             // THE ,0 was added by V3-Author
+        (LParen {(qualifiedItemIsOneOf(qiType,0) )}? ID RParen)=> 
+        LParen ID RParen (expression)?  // This is an unsatisfactory fix for problem in xstring re 'return (allocator);'
+                        //  and in xlocale re return (_E)(_Tolower((unsigned char)_C, &_Ctype));
+        //{printf("\%d CPP_parser.g jump_statement Return fix used\n",lineNo);}
+      |  expression 
+      )?  SemiColon {in_return = False; end_of_stmt();} 
+    )
+  ;
 
 //try_block
 try_block
-	:	
-		'try' compound_statement (handler)*
-	;
+  :  
+    Try compound_statement (handler)*
+  ;
 
 //handler
 handler
-	:	
-		'catch'
-		{exceptionBeginHandler();}
-		{declaratorParameterList(1);}
-		LPAREN exception_declaration RPAREN
-		{declaratorEndParameterList(1);}
-		compound_statement
-		{exceptionEndHandler();}
-	;
+  :  
+    Catch
+    {exceptionBeginHandler();}
+    {declaratorParameterList(1);}
+    LParen exception_declaration RParen
+    {declaratorEndParameterList(1);}
+    compound_statement
+    {exceptionEndHandler();}
+  ;
 
 //exception_declaration
 exception_declaration
-	:	
-		parameter_declaration_list
-	;
+  :  
+    parameter_declaration_list
+  ;
 
 // This is an expression of type void according to the ARM, which
 // to me means "statement"; it removes some ambiguity to put it in
@@ -1781,20 +1779,20 @@ exception_declaration
 ///
 //throw_statement
 throw_statement
-	:	
-		'throw' (assignment_expression) ? SEMICOLON { end_of_stmt();}
-	;
+  :  
+    Throw (assignment_expression) ? SemiColon { end_of_stmt();}
+  ;
 
 //using_statement
 using_statement
-	//{char *qid;}
-	:		
-		'using'
-		('namespace' qid = qualified_id		// Using-directive
-		|('typename')? qid = qualified_id	// Using-declaration
-		)
-		SEMICOLON {end_of_stmt();}
-	;
+  //{char *qid;}
+  :    
+    USING
+    (Namespace qid = qualified_id    // Using-directive
+    |(TypeName)? qid = qualified_id  // Using-declaration
+    )
+    SemiColon {end_of_stmt();}
+  ;
 
 
 ///////////////////////////////////////////////////////////////////////
@@ -1806,153 +1804,153 @@ using_statement
 // Same as expression_list
 //expression
 expression
-	@init
-	{
-	lineNo = LT(1)->line;
-	}
-	:	
-		assignment_expression (COMMA assignment_expression)*
-	;
+  @init
+  {
+  lineNo = LT(1)->line;
+  }
+  :  
+    assignment_expression (Comma assignment_expression)*
+  ;
 
 // right-to-left for assignment op
 //assignment_expression
 assignment_expression
-	:	
-		conditional_expression
-		(	//options{backtrack=true; k=3;}:
-			(ASSIGNEQUAL|TIMESEQUAL|DIVIDEEQUAL|MINUSEQUAL|PLUSEQUAL
-			|MODEQUAL|SHIFTLEFTEQUAL|SHIFTRIGHTEQUAL|BITWISEANDEQUAL
-			|BITWISEXOREQUAL|BITWISEOREQUAL
-			)
-			remainder_expression
-		)?
-	;
+  :  
+    conditional_expression
+    (  //options{backtrack=true; k=3;}:
+      (Assign|TimesAssign|DivideAssign|MinusAssign|PlusAssign
+      |ModAssign|ShiftLeftAssign|ShiftRightAssign|BitwiseAndAssign
+      |BitwiseExOrAssign|BitwiseOrAssign
+      )
+      remainder_expression
+    )?
+  ;
 
 
 //remainder_expression
 remainder_expression
-	:
-		(	
-			(conditional_expression (COMMA|SEMICOLON|RPAREN) )=>
-			{assign_stmt_RHS_found += 1;}
-			assignment_expression
-			{
-			if (assign_stmt_RHS_found > 0)
-				assign_stmt_RHS_found -= 1;
-			else
-				{
-				fprintf(stderr,"\%d warning Error in assign_stmt_RHS_found = \%d\n",
-					LT(1)->line,assign_stmt_RHS_found);
-				fprintf(stderr,"Press return to continue\n");
-				getchar();
-				}
-			}
-		|	
-			assignment_expression
-		)
-	;
+  :
+    (  
+      (conditional_expression (Comma|SemiColon|RParen) )=>
+      {assign_stmt_RHS_found += 1;}
+      assignment_expression
+      {
+      if (assign_stmt_RHS_found > 0)
+        assign_stmt_RHS_found -= 1;
+      else
+        {
+        fprintf(stderr,"\%d warning Error in assign_stmt_RHS_found = \%d\n",
+          LT(1)->line,assign_stmt_RHS_found);
+        fprintf(stderr,"Press return to continue\n");
+        getchar();
+        }
+      }
+    |  
+      assignment_expression
+    )
+  ;
 
 //conditional_expression
 conditional_expression
-	:	
-		logical_or_expression
-		(QUESTIONMARK expression COLON conditional_expression)?
-	;
+  :  
+    logical_or_expression
+    (QuestionMark expression Colon conditional_expression)?
+  ;
 
 //constant_expression
 constant_expression
-	:	
-		conditional_expression
-	;
+  :  
+    conditional_expression
+  ;
 
 //logical_or_expression
 logical_or_expression
-	:	
-		logical_and_expression (OR logical_and_expression)* 
-	;
+  :  
+    logical_and_expression (Or logical_and_expression)* 
+  ;
 
 //logical_and_expression
 logical_and_expression
-	:	
-		inclusive_or_expression (AND inclusive_or_expression)* 
-	;
+  :  
+    inclusive_or_expression (And inclusive_or_expression)* 
+  ;
 
 //inclusive_or_expression
 inclusive_or_expression
-	:	
-		exclusive_or_expression (BITWISEOR exclusive_or_expression)*
-	;
+  :  
+    exclusive_or_expression (BitwiseOr exclusive_or_expression)*
+  ;
 
 //exclusive_or_expression
 exclusive_or_expression
-	:	
-		and_expression (BITWISEXOR and_expression)*
-	;
+  :  
+    and_expression (BitwiseExOr and_expression)*
+  ;
 
 //and_expression
 and_expression
-	:	
-		equality_expression (AMPERSAND equality_expression)*
-	;
+  :  
+    equality_expression (Ampersand equality_expression)*
+  ;
 
 //equality_expression
 equality_expression
-	:	
-		relational_expression ( (NOTEQUAL|EQUAL) relational_expression)*
-	;
+  :  
+    relational_expression ( (NotEquals|Equals) relational_expression)*
+  ;
 
 //relational_expression
 relational_expression
-	:	
-		shift_expression
-		(options{backtrack=true;}: //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-			//{!wasInTemplate}?
-			(
-				(	LESSTHAN
-				|	GREATERTHAN
-				|	LESSTHANOREQUALTO
-				|	GREATERTHANOREQUALTO
-				)
-			 	
-		 	)shift_expression
-		)?
-	;
+  :  
+    shift_expression
+    (options{backtrack=true;}: //added by V3-Author //options {warnWhenFollowAmbig = false;}:
+      //{!wasInTemplate}?
+      (
+        (  LessThan
+        |  GreaterThan
+        |  LessThanOrEquals
+        |  GreaterThanOrEquals
+        )
+         
+       )shift_expression
+    )?
+  ;
 
 //shift_expression
 shift_expression
-	:	
-		additive_expression ((SHIFTLEFT | SHIFTRIGHT) additive_expression)*
-	;
+  :  
+    additive_expression ((ShiftLeft | ShiftRight) additive_expression)*
+  ;
 
 // See comment for multiplicative_expression regarding #pragma
 additive_expression
-	:	
-		multiplicative_expression
-		(//options{backtrack=true;k=3;}: //added by V3-Author //{dummyVar}? //added by V3-Author //options{warnWhenFollowAmbig = false;}:
-			(PLUS | MINUS) multiplicative_expression
-		)*
-	;
+  :  
+    multiplicative_expression
+    (//options{backtrack=true;k=3;}: //added by V3-Author //{dummyVar}? //added by V3-Author //options{warnWhenFollowAmbig = false;}:
+      (Plus | Minus) multiplicative_expression
+    )*
+  ;
 
 // ANTLR has trouble dealing with the analysis of the confusing unary/binary
-// operators such as STAR, AMPERSAND, PLUS, etc...  
+// operators such as Star, Ampersand, Plus, etc...  
 // With the #pragma (now "(options{warnWhenFollowAmbig = false;}:" etc.)
 // we simply tell ANTLR to use the "quick-to-analyze" approximate lookahead
 // as full LL(k) lookahead will not resolve the ambiguity anyway.  Might
 // as well not bother.  This has the side-benefit that ANTLR doesn't go
 // off to lunch here (take infinite time to read grammar).
 multiplicative_expression
-	:	
-		pm_expression
-		(//options{backtrack=true;k=3;}: //added by V3-Author //{dummyVar}? //added by V3-Author //options{warnWhenFollowAmbig = false;}:
-			(STAR|DIVIDE|MOD) pm_expression
-		)*
-	;
+  :  
+    pm_expression
+    (//options{backtrack=true;k=3;}: //added by V3-Author //{dummyVar}? //added by V3-Author //options{warnWhenFollowAmbig = false;}:
+      (Star|Divide|Mod) pm_expression
+    )*
+  ;
 
 //pm_expression
 pm_expression
-	:	
-		cast_expression ( (DOTMBR|POINTERTOMBR) cast_expression)*
-	;
+  :  
+    cast_expression ( (DotMbr|PointerToMbr) cast_expression)*
+  ;
 
 // The string "( ID" can be either the start of a cast or
 ///the start of a unary_expression.  However, the ID must
@@ -1987,140 +1985,87 @@ pm_expression
 //
 // The qualifiedItemIs(1) function scans ahead to what follows the
 // final "::" and returns qiType if the item is a type.  The offset of
-// '1' makes it ignore the initial LPAREN; normally, the offset is 0.
- //
-
-//cast_expression
+// '1' makes it ignore the initial LParen; normally, the offset is 0.
 cast_expression 
-	:
-		(LPAREN type_id RPAREN unary_expression)=>
-		 LPAREN type_id RPAREN unary_expression
-	|
-		// Believe it or not, you can get more than one cast expression in sequence
-		(LPAREN type_id RPAREN cast_expression)=>
-		 LPAREN type_id RPAREN cast_expression
-	|  
-		unary_expression	// handles outer (...) of "(T(expr))"
-	;
+  : (LParen type_id RParen unary_expression)=>   LParen type_id RParen unary_expression
+  | (LParen type_id RParen cast_expression)=>    LParen type_id RParen cast_expression
+  | unary_expression  // handles outer (...) of "(T(expr))"
+  ;
 
-
-//unary_expression
 unary_expression
-	:
-		(	
-			(postfix_expression)=> 
-			postfix_expression
-		|	
-			PLUSPLUS unary_expression
-		|	
-			MINUSMINUS unary_expression
-		|	
-			unary_operator cast_expression
-		|	
-			('sizeof'
-			|'__alignof__' 	//Zhaojz 02/02/05 to fix bug 29 (GNU)
-			)
-			(	(unary_expression)=>
-				 unary_expression
-			|
-				LPAREN type_id RPAREN
-			)
-		|   
-			(SCOPE)?
-			(new_expression
-			|delete_expression
-			)
-		)
-	;
+  : (postfix_expression)=>   postfix_expression
+  | Increment unary_expression
+  | Decrement unary_expression
+  | unary_operator cast_expression
+  | SizeOf  //Zhaojz 02/02/05 to fix bug 29 (GNU)
+    (  (unary_expression)=> unary_expression | LParen type_id RParen  )
+  | Scope? (new_expression | delete_expression)
+  ;
 
 
-//postfix_expression
 postfix_expression
-	//@init
-	//{
-	 //TypeSpecifier ts;
-	//}
-	:
-	
-	
-		//options{backtrack=true;k=3;}: //added by V3-Author //{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-		// Function-style cast must have a leading type
-		{!(LA(1)==LPAREN)}?
-		(ts = simple_type_specifier LPAREN RPAREN LPAREN)=>	// DW 01/08/03 To cope with problem in xtree (see test10.i) 
-		  ts =simple_type_specifier LPAREN RPAREN LPAREN (expression_list)? RPAREN 
-	|
-		{!(LA(1)==LPAREN)}? =>
-		(ts = simple_type_specifier LPAREN)=>
-		 ts = simple_type_specifier LPAREN (expression_list)? RPAREN 
-		// Following put in to allow for the above being a constructor as shown in test_constructors_destructors.cpp
-		(DOT postfix_expression)?
-	|  
-		primary_expression
-		(//options{backtrack=true;}: //added by V3-Author //{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-        	(LSQUARE expression RSQUARE
-			 |	LPAREN (expression_list)? RPAREN // function call/function-call or method call/method-call.
-			 |	(DOT|POINTERTO) (TEMPLATE)? id_expression
-			 |	PLUSPLUS 
-			 |	MINUSMINUS
-			)*
-		)
-	|
-		('dynamic_cast'|'static_cast'|'reinterpret_cast'|'const_cast')
-		LESSTHAN ('const')? ts = type_specifier (ptr_operator)? GREATERTHAN
-		LPAREN expression RPAREN
-	|
-		'typeid' 
-		LPAREN ((type_id)=>type_id|expression) RPAREN
-		( (DOT|POINTERTO) postfix_expression)?
-	
-	;
+  :
+    // Function-style cast must have a leading type
+    {!(LA(1)==LParen)}?
+    (ts = simple_type_specifier LParen RParen LParen)=>  // DW 01/08/03 To cope with problem in xtree (see test10.i) 
+      ts =simple_type_specifier LParen RParen LParen (expression_list)? RParen 
+  |
+    {!(LA(1)==LParen)}? =>
+    (ts = simple_type_specifier LParen)=>
+     ts = simple_type_specifier LParen (expression_list)? RParen 
+    // Following put in to allow for the above being a constructor as shown in test_constructors_destructors.cpp
+    (Dot postfix_expression)?
+  |  
+    primary_expression
+    (//options{backtrack=true;}: //added by V3-Author //{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
+          (LSquare expression RSquare
+       |  LParen (expression_list)? RParen // function call/function-call or method call/method-call.
+       |  (Dot|PointerTo) (Template)? id_expression
+       |  Increment 
+       |  Decrement
+      )*
+    )
+  |
+    Cast
+    LessThan (Const)? ts = type_specifier (ptr_operator)? GreaterThan
+    LParen expression RParen
+  |
+    TypeID 
+    LParen ((type_id)=>type_id|expression) RParen
+    ( (Dot|PointerTo) postfix_expression)?
+  
+  ;
 
-//primary_expression
 primary_expression
-	:	id_expression
-	|	literal
-	|	'this'
-	|	LPAREN expression RPAREN
-	;
+  : id_expression
+  | literal
+  | This
+  | LParen expression RParen
+  ;
 
-//id_expression
 id_expression 
-	//{
-	//char *s;
-	//}
-	:
-		(	s = qualified_id 
-		)
-	;
+  : qualified_id 
+  ;
 
-
-//literal
 literal
-	://options{backtrack=true;k=2;}:
-	(	OCTALINT
-	|	DECIMALINT
-	|	HEXADECIMALINT
-	|	CharLiteral
-	|	WCharLiteral
-	|	(StringLiteral|WStringLiteral)+
-	|	FLOATONE
-	|	FLOATTWO
-	|	'true'
-	|	'false')
-	
-	;
+  : True
+  | False
+  | HEX_LITERAL
+  | OCTAL_LITERAL
+  | DECIMAL_LITERAL
+  | CHARACTER_LITERAL
+  | FLOATING_POINT_LITERAL
+  | STRING_LITERAL+
+  ;
 
-//unary_operator
 unary_operator
-	:
-	//options{backtrack=true;}:	
-	AMPERSAND
-	|	STAR
-	|	PLUS
-	|	MINUS
-	|	TILDE
-	|	NOT
-	;
+  : Ampersand
+  | Star
+  | Plus
+  | Minus
+  | Tilde
+  | Not
+  ;
 
 
 // JEL The first ()? is used to resolve "new (expr) (type)" because both
@@ -2130,46 +2075,25 @@ unary_operator
 // function arguments can follow a primary_expression.  [This is a full
 // LL(k) versus LALL(k) problem.  Enhancing context by duplication of
 // some rules might handle this.]
-///
-//new_expression
 new_expression
-	:
-	(  
-		'new'
-		(	(LPAREN expression_list RPAREN)=> 
-			 LPAREN expression_list RPAREN)?
-		(
-		(LPAREN type_id RPAREN)=> LPAREN type_id RPAREN
-		|new_type_id)
-		(//{dummyVar}? //added by V3-Author //options{warnWhenFollowAmbig = false;}:	
-		(new_initializer)=> new_initializer)?
-	)
-	;
+  : New
+    (  (LParen expression_list RParen)=>     LParen expression_list RParen )?
+    (  (LParen type_id RParen)=>             LParen type_id RParen  | new_type_id )
+    ( (new_initializer)=>                   new_initializer )?
+  ;
 
-//new_initializer
 new_initializer
-	:	
-		LPAREN (expression_list)? RPAREN
-	;
+  :  LParen (expression_list)? RParen
+  ;
 
-//new_type_id
 new_type_id
-	:	
-		declaration_specifiers 
-		(//options{backtrack=true;}: //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-			new_declarator
-		)?
-	;
+  :  declaration_specifiers new_declarator?
+  ;
 
-//new_declarator
 new_declarator
-	:	 
-		ptr_operator
-		(//options{backtrack=true;}: //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-		new_declarator)?
-	|	
-		direct_new_declarator
-	;
+  :  ptr_operator new_declarator?
+  |  direct_new_declarator
+  ;
 
 // The "[expression]" construct conflicts with the "new []" construct
 // (and possibly others).  We used approximate lookahead for the "new []"
@@ -2179,152 +2103,140 @@ new_declarator
 // Approximate lookahead handles this correctly.  In fact, approximate
 // lookahead is the same as full lookahead when all but the last lookahead
 // depth are singleton sets; e.g., {"["} followed by FIRST(expression).
-///
-//direct_new_declarator
 direct_new_declarator
-	:
-		(//options{backtrack=true;}: //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-			(LSQUARE expression RSQUARE)
-		)+
-	;
+  : (LSquare expression RSquare)+
+  ;
 
 
-//ptr_operator
 ptr_operator 
-	//{char *s;}
-	:	//options{backtrack=true;}:
-			 AMPERSAND 	{is_address = TRUE;} |
-			 ('_cdecl'|'__cdecl') 
-		|	 ('_near'|'__near') 
-		|	 ('_far'|'__far') 
-		|	 '__interrupt' 
-		|	 ('pascal'|'_pascal'|'__pascal') 
-		|	 ('_stdcall'|'__stdcall') 
-		|	 (s = scope_override STAR cv_qualifier_seq)=>
-			  s = scope_override STAR {is_pointer = TRUE;} cv_qualifier_seq
-		
-		
-			
-   ;
+  : Ampersand   {is_address = True;} 
+  |  ('_cdecl'|'__cdecl') 
+  |   ('_near'|'__near') 
+  |   ('_far'|'__far') 
+  |   '__interrupt' 
+  |   ('pascal'|'_pascal'|'__pascal') 
+  |   ('_stdcall'|'__stdcall') 
+  |   (s = scope_override Star cv_qualifier_seq)=>  s = scope_override Star {is_pointer = True;} cv_qualifier_seq
+  ;
    
   
 
-// Match A::B::*	// May be redundant 14/06/06
+// Match A::B::*  // May be redundant 14/06/06
 //ptr_to_member
-ptr_to_member	// Part of ptr_operator in grammar.txt
-	//{char *s;}
-	:
-		s = scope_override STAR  {is_pointer = TRUE;} cv_qualifier_seq
-	;
+ptr_to_member  // Part of ptr_operator in grammar.txt
+  //{char *s;}
+  :
+    s = scope_override Star  {is_pointer = True;} cv_qualifier_seq
+  ;
 
 // JEL note:  does not use (const|volatile)* to avoid lookahead problems
 //cv_qualifier_seq
 cv_qualifier_seq
-	//{CPPParser::TypeQualifier tq;}
-	:
-		(tq = type_qualifier)*
-	;
+  //{CPPParser::TypeQualifier tq;}
+  :
+    (tq = type_qualifier)*
+  ;
 
 
 // Match "(::)A::B::C::(template)" or just "::"
 //scope_override
 scope_override returns [char *so]
-	@init 
-	{
-	char sitem[1024+1];//CPPParser_MaxQualifiedItemSize+1];
-	// The above statement must be non static because its calling is nested
-	sitem[0] = '\0';
-	//so = NULL;
-	}
-	:
-		(SCOPE {strcat(sitem,"::");} )?
-		(	//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-			//{dummyVar2}? //added by V3-Author 
-			(ID LESSTHAN template_argument_list GREATERTHAN SCOPE)=>
-			id1=ID {strcat(sitem,(char*)($id1.text->chars));}
-			LESSTHAN template_argument_list GREATERTHAN // {strcat(sitem,"<...>");}
-			SCOPE{strcat(sitem,"::");}
-			(TEMPLATE {strcat(sitem,"template");})?
-			
-		|	
-			(ID SCOPE)=> // added by V3-Author
-			//{dummyVar}? //added by V3-Author 
-			id2=ID {strcat(sitem,(char*)($id2.text->chars));}
-			SCOPE {strcat(sitem,"::");}
-			(TEMPLATE {strcat(sitem,"template");})?
-			
-		)*
-		{
-		 $so = sitem;
-		}
-	;
+  @init 
+  {
+  char sitem[1024+1];//CPPParser_MaxQualifiedItemSize+1];
+  // The above statement must be non static because its calling is nested
+  sitem[0] = '\0';
+  //so = NULL;
+  }
+  :
+    (Scope {strcat(sitem,"::");} )?
+    (  //{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
+      //{dummyVar2}? //added by V3-Author 
+      (ID LessThan template_argument_list GreaterThan Scope)=>
+      id1=ID {strcat(sitem,(char*)($id1.text->chars));}
+      LessThan template_argument_list GreaterThan // {strcat(sitem,"<...>");}
+      Scope{strcat(sitem,"::");}
+      (Template {strcat(sitem,"template");})?
+      
+    |  
+      (ID Scope)=> // added by V3-Author
+      //{dummyVar}? //added by V3-Author 
+      id2=ID {strcat(sitem,(char*)($id2.text->chars));}
+      Scope {strcat(sitem,"::");}
+      (Template {strcat(sitem,"template");})?
+      
+    )*
+    {
+     $so = sitem;
+    }
+  ;
 
 
 
 //delete_expression
 delete_expression
-	:	
-		'delete' (LSQUARE RSQUARE)? cast_expression
-	;
+  :  
+    Class (LSquare RSquare)? cast_expression
+  ;
 
 // Same as expression
 //expression_list
 expression_list
-	:	
-		assignment_expression (COMMA assignment_expression)*
-	;
+  :  
+    assignment_expression (Comma assignment_expression)*
+  ;
 
 //optor
 optor returns [char* s]
-	@init 
-	{
-	char sitem[1024+1];//CPPParser_MaxQualifiedItemSize+1];
-	//TypeSpecifier ts=tsInvalid;
-	char *opitem;
-	
-	sitem[0]='\0';
-	//s=NULL;
-	}
-	:	// NOTE: you may need to add backtracking depending on the C++ standard specifications used...
-		// but for now V3-Author has decided not to add that and go for the default alternative 1 selected
-		// during antlr code generation...
-		(	'new' {strcat(sitem," new");}
-			(//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-				LSQUARE RSQUARE  {strcat(sitem,"[]");} )?
-		|   
-			'delete' {strcat(sitem," delete");}
-			(//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-				LSQUARE RSQUARE  {strcat(sitem,"[]");} )?
-		|	
-			LPAREN RPAREN  {strcat(sitem,"()");}
-		|	
-			LSQUARE RSQUARE  {strcat(sitem,"[]");}
-		|
-			{strcat(sitem,(char*)(LT(1)->getText(LT(1)))->chars);}
-			optor_simple_tokclass
-		|
-			{strcat(sitem,"type-specifier()");}
-			ts = type_specifier LPAREN RPAREN
-		)
-		{
-		$s = sitem;
-		}
-	;
+  @init 
+  {
+  char sitem[1024+1];//CPPParser_MaxQualifiedItemSize+1];
+  //TypeSpecifier ts=tsInvalid;
+  char *opitem;
+  
+  sitem[0]='\0';
+  //s=NULL;
+  }
+  :  // NOTE: you may need to add backtracking depending on the C++ standard specifications used...
+    // but for now V3-Author has decided not to add that and go for the default alternative 1 selected
+    // during antlr code generation...
+    (  New {strcat(sitem," new");}
+      (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
+        LSquare RSquare  {strcat(sitem,"[]");} )?
+    |   
+      Delete {strcat(sitem," delete");}
+      (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
+        LSquare RSquare  {strcat(sitem,"[]");} )?
+    |  
+      LParen RParen  {strcat(sitem,"()");}
+    |  
+      LSquare RSquare  {strcat(sitem,"[]");}
+    |
+      {strcat(sitem,(char*)(LT(1)->getText(LT(1)))->chars);}
+      optor_simple_tokclass
+    |
+      {strcat(sitem,"type-specifier()");}
+      ts = type_specifier LParen RParen
+    )
+    {
+    $s = sitem;
+    }
+  ;
 
 
 // optor_simple_tokclass
 optor_simple_tokclass
-	:
-	//options{backtrack=true;}:
-    	 PLUS|MINUS|STAR|DIVIDE|MOD|BITWISEXOR|AMPERSAND|BITWISEOR|TILDE|NOT|
-	 SHIFTLEFT|SHIFTRIGHT|
-	 ASSIGNEQUAL|TIMESEQUAL|DIVIDEEQUAL|MODEQUAL|PLUSEQUAL|MINUSEQUAL|
-	 SHIFTLEFTEQUAL|SHIFTRIGHTEQUAL|BITWISEANDEQUAL|BITWISEXOREQUAL|BITWISEOREQUAL|
-	 EQUAL|NOTEQUAL|LESSTHAN|GREATERTHAN|LESSTHANOREQUALTO|GREATERTHANOREQUALTO|OR|AND|
-	 PLUSPLUS|MINUSMINUS|COMMA|POINTERTO|POINTERTOMBR
-	
-	
-	;
+  :
+  //options{backtrack=true;}:
+       Plus|Minus|Star|Divide|Mod|BitwiseExOr|Ampersand|BitwiseOr|Tilde|Not|
+   ShiftLeft|ShiftRight|
+   Assign|TimesAssign|DivideAssign|ModAssign|PlusAssign|MinusAssign|
+   ShiftLeftAssign|ShiftRightAssign|BitwiseAndAssign|BitwiseExOrAssign|BitwiseOrAssign|
+   Equals|NotEquals|LessThan|GreaterThan|LessThanOrEquals|GreaterThanOrEquals|Or|And|
+   Increment|Decrement|Comma|PointerTo|PointerToMbr
+  
+  
+  ;
 
 
 /////////////////////////////////////////////////////////////
@@ -2332,445 +2244,233 @@ optor_simple_tokclass
 
 // Operators:
 
-ASSIGNEQUAL     : '=' ;
-COLON           : ':' ;
-COMMA           : ',' ;
-QUESTIONMARK    : '?' ;
-SEMICOLON       : ';' ;
-POINTERTO       : '->' ;
+Assign             : '=' ;
+Colon              : ':' ;
+Comma              : ',' ;
+QuestionMark       : '?' ;
+SemiColon          : ';' ;
+PointerTo          : '->' ;
 
-// DOT & ELLIPSIS are commented out since they are generated as part of
+// Dot & Ellipsis are commented out since they are generated as part of
 // the Number rule below due to some bizarre lexical ambiguity shme.
- DOT  :       '.' ;
- ELLIPSIS      : '...' ;
+Dot                : '.' ;
+Ellipsis           : '...' ;
 
-LPAREN          : '(' ;
-RPAREN          : ')' ;
-LSQUARE         : '[' ;
-RSQUARE         : ']' ;
-LCURLY          : '{' ;
-RCURLY          : '}' ;
+LParen             : '(' ;
+RParen             : ')' ;
+LSquare            : '[' ;
+RSquare            : ']' ;
+LCurly             : '{' ;
+RCurly             : '}' ;
 
-EQUAL           : '==' ;
-NOTEQUAL        : '!=' ;
-LESSTHANOREQUALTO     : '<=' ;
-LESSTHAN              : '<' ;
-GREATERTHANOREQUALTO  : '>=' ;
-GREATERTHAN           : '>' ;
+Equals             : '==' ;
+NotEquals          : '!=' ;
+LessThanOrEquals   : '<=' ;
+LessThan           : '<' ;
+GreaterThanOrEquals: '>=' ;
+GreaterThan        : '>' ;
 
-DIVIDE          : '/' ;
-DIVIDEEQUAL     : '/=' ;
-PLUS            : '+' ;
-PLUSEQUAL       : '+=' ;
-PLUSPLUS        : '++' ;
-MINUS           : '-' ;
-MINUSEQUAL      : '-=' ;
-MINUSMINUS      : '--' ;
-STAR            : '*' ;
-TIMESEQUAL      : '*=' ;
-MOD             : '%' ;
-MODEQUAL        : '%=' ;
-SHIFTRIGHT      : '>>' ;
-SHIFTRIGHTEQUAL : '>>=' ;
-SHIFTLEFT       : '<<' ;
-SHIFTLEFTEQUAL  : '<<=' ;
+Divide             : '/' ;
+DivideAssign       : '/=' ;
+Plus               : '+' ;
+PlusAssign         : '+=' ;
+Increment          : '++' ;
+Minus              : '-' ;
+MinusAssign        : '-=' ;
+Decrement          : '--' ;
+Star               : '*' ;
+TimesAssign        : '*=' ;
+Mod                : '%' ;
+ModAssign          : '%=' ;
+ShiftRight         : '>>' ;
+ShiftRightAssign   : '>>=' ;
+ShiftLeft          : '<<' ;
+ShiftLeftAssign    : '<<=' ;
 
-AND            : '&&' ;
-NOT            : '!' ;
-OR             : '||' ;
+And                : '&&' ;
+Not                : '!' ;
+Or                 : '||' ;
 
-AMPERSAND       : '&' ;
-BITWISEANDEQUAL : '&=' ;
-TILDE           : '~' ;
-//BITWISEAND      : ' & ' ;
-BITWISEOR       : '|' ;
-BITWISEOREQUAL  : '|=' ;
-BITWISEXOR      : '^' ;
-BITWISEXOREQUAL : '^=' ;
+Ampersand          : '&' ;
+BitwiseAndAssign   : '&=' ;
+Tilde              : '~' ;
+BitwiseOr          : '|' ;
+BitwiseOrAssign    : '|=' ;
+BitwiseExOr        : '^' ;
+BitwiseExOrAssign  : '^=' ;
 
 //Zuo: the following tokens are come from cplusplus.g
 
-POINTERTOMBR    : '->*' ;
-DOTMBR          : '.*'  ;
+PointerToMbr       : '->*' ;
+DotMbr             : '.*'  ;
 
-SCOPE           : '::'  ;
+Scope              : '::'  ;
 
 // Keywords
+Auto               : 'auto'            ;
+Bool               : 'bool'            ;
+Break              : 'break'           ;
+Case               : 'case'            ;
+Cast               : 'dynamic_cast'|'static_cast'|'reinterpret_cast'|'const_cast';
+Catch              : 'catch'           ;
+Char               : 'char'            ;
+Class              : 'class'           ;
+Const              : 'const'|'__const' ;
+Continue           : 'continue'        ;
+DeclSpec           : '_declspec'|'__declspec'      ; // microsoft specific
+Default            : 'default'         ;
+Delete             : 'delete'          ;
+Do                 : 'do'              ;
+Double             : 'double'          ;
+Else               : 'else'            ;
+Enum               : 'enum'            ;
+Extern             : 'extern'          ;
+Explicit           : 'explicit'        ;
+False              : 'false'           ;
+Float              : 'float'           ;
+For                : 'for'             ;
+Friend             : 'friend'          ;
+Goto               : 'goto'            ;
+If                 : 'if'              ;
+Int                : 'int'|'_int8'|'__int8'|'_int16'|'__int16';
+Inline             : 'inline'|'_inline'|'__inline__'|'__inline';
+Long               : 'long'|'_int32'|'__int32'|'_int64'|'__int64'|'_w64'|'__w64';
+Mutable            : 'mutable'         ;
+Namespace          : 'namespace'       ;
+New                : 'new'             ;
+Operator           : 'operator'        ;
+Public             : 'public'          ;
+Protected          : 'protected'       ;
+Private            : 'private'         ;
+Register           : 'register'        ;
+Restrict           : ('restrict'|'__restrict'|'__restrict__') {$channel=HIDDEN;};
+Return             : 'return'          ;
+Short              : 'short'           ;
+Signed             : 'signed'          ;
+SizeOf             : 'sizeof'|'__alignof__';
+Static             : 'static'          ;
+Struct             : 'struct'          ;
+Switch             : 'switch'          ;
+Template           : 'template'        ;
+This               : 'this'            ;
+Throw              : 'throw'           ;
+True               : 'true'            ;
+Try                : 'try'             ;
+TypeDef            : 'typedef'         ;
+TypeID             : 'typeid'          ;
+TypeName           : 'typename'        ;
+Union              : 'union'           ;
+Unsigned           : 'unsigned'        ;
+Virtual            : 'virtual'         ;
+Void               : 'void'            ;
+Volatile           : 'volatile'        ;
+WChar_T            : 'wchar_t'         ;
+While              : 'while'           ;
+/////////
 
-TEMPLATE : 'template' ;
-
-
-
-
-
-
-
-
-
-
-Whitespace	
-	:	
-		(	// Ignore space
-			Space
-		|	// handle newlines
-			(	'\r' '\n'	// MS
-			|	'\r'		// Mac
-			|	'\n'		// Unix 
-			)	{/*newline();*/}
-		|	// handle continuation lines
-			(	'\\' '\r' '\n'	// MS
-			|	'\\' '\r'		// Mac
-			|	'\\' '\n'		// Unix 
-			)	{printf("CPP_parser.g continuation line detected on line \%d\n",$line);
-				deferredNewline();}
-		)	
-		{ $channel=HIDDEN;  }
-	;
-
-Comment  
-	:	
-		'/*'   
-		(	{LA(2) != '/'}?=> '*'
-		|	EndOfLine {deferredNewline();}
-		|	~('*'| '\r' | '\n')
-		)*
-		'*/' { $channel=HIDDEN;  }
-	;
-
-CPPComment
-	:	
-		'//' (~('\n' | '\r'))* EndOfLine
- 		{ $channel=HIDDEN; /*newline();*/}                     
-	;
-
-PREPROC_DIRECTIVE
-	//options{paraphrase = 'a line directive';}
-	@init { paraphrase_push("a line directive"); }
-	@after { paraphrase_pop(); }
-	:	
-		'#' LineDirective
-		{ $channel=HIDDEN; /*newline();*/} 
-	;
-
-fragment 
-LineDirective
-	:
-		('line')?  // this would be for if the directive started '#line'
-		(Space)+
-		n=Decimal
-		(Space)+
-		(sl=StringLiteral)
-		((Space)+ Decimal)*	// To support cpp flags (GNU)
-		{
-		process_line_directive((char*)$sl.text->chars, (char*)$n.text->chars);  // see main()
-		}
-		EndOfLine?
-	;
-
-fragment  
-Space
-	:	
-			(' '|'\t' {tab();}|'\f')
-	;
-
-Pragma
-	:	
-		('#' 'pragma'	(	(EndOfContinuedLine)=>EndOfContinuedLine
-						|	~('\r' | '\n')
-						)*
-		EndOfLine?
-		)
-		{ $channel=HIDDEN; /*newline();*/}
-	;
-
-Error
-	:	
-		('#' 'error'	(	(EndOfContinuedLine)=>EndOfContinuedLine
-						|	~('\r' | '\n')
-						)* EndOfLine
-		EndOfLine?
-		)
-		{ $channel=HIDDEN; /*newline();*/}
-	;
+ASM                : 'asm'|'__asm__'|'__asm';
+EXTENSION          : '__extension__' {$channel=HIDDEN;}; // GNU specific
+ATTRIBUTE          : '__attribute__'   ; // GNU specific
 
 
-// Added by V3-Author to eliminate the need for a preprocessor
-PreProcDirective
-		:
-			('#' 
-				(Space)=> Space*
-				(
-					('ifdef')=> 'ifdef'	 		
-				|	('ifndef')=> 'ifndef' 		
-				|	('if')=> 'if' 	  		
-				|	('elif')=> 'elif' 	 		
-				|	('else')=> 'else' 	 		
-				|	('endif')=> 'endif'	 			
-				|	('undef')=> 'undef'    
-				|	('define')=> 'define' 
-				|	('exec_macro_expression')=> 'exec_macro_expression' 
-				|	('include')=> 'include'
-				|	('include_next')=> 'include_next'	
-				|	('warning')=> 'warning' 
-				)	
-				
-				(	(EndOfContinuedLine)=>EndOfContinuedLine
-					|	~('\r' | '\n')
-				)*
-			EndOfLine?
-			)
-		{ $channel=HIDDEN; /*newline();*/}
-		;
+/////////
 
-// Literals:
-
-/*
- * Note that we do NOT handle tri-graphs nor multi-byte sequences.
- */
-
-/*
- * Note that we can't have empty character constants (even though we
- * can have empty strings :-).
- */
-CharLiteral
-	:	
-		'\'' ( Escape | UniversalCharacterName | ~('\''|'\\'|'\n'|'\r') ) '\''
-	;
-
-WCharLiteral
-	:
-		'L' CharLiteral
-	;
-
-/*
- * Can't have raw imbedded newlines in string constants.  Strict reading of
- * the standard gives odd dichotomy between newlines & carriage returns.
- * Go figure.
- */
-StringLiteral
-	:	
-		'"'
-		(	Escape
-		|	UniversalCharacterName
-		|	~('"'|'\\'|'\n'|'\r')
-		)*
-		'"'
-	;
-
-WStringLiteral
-	:
-		'L' StringLiteral
-	;
-
-fragment
-EndOfContinuedLine
-	:
-		(//{dummyVar}?=> //added by V3-Author //options{generateAmbigWarnings = false;}:
-			'\\' (Space)* '\r' '\n'	// MS
-		|	'\\' (Space)* '\r'		// Mac
-		|	'\\' (Space)* '\n'		// Unix 
-		)	{deferredNewline();}
-	;
-
-fragment
-EndOfLine
-	:	
-		(//{dummyVar}?=> //added by V3-Author //options{generateAmbigWarnings = false;}:
-			'\r\n'  // MS
-		|	'\r'    // Mac
-		|	'\n'    // Unix
-		)
-	;
-
-/*
- * Handle the various escape sequences.
- *
- * Note carefully that these numeric escape *sequences* are *not* of the
- * same form as the C language numeric *constants*.
- *
- * There is no such thing as a binary numeric escape sequence.
- *
- * Octal escape sequences are either 1, 2, or 3 octal digits exactly.
- *
- * There is no such thing as a decimal escape sequence.
- *
- * Hexadecimal escape sequences are begun with a leading \x and continue
- * until a non-hexadecimal character is found.
- *
- * No real handling of tri-graph sequences, yet.
- */
-
-fragment
-Escape  
-	:	
-		'\\'
-		(// options{warnWhenFollowAmbig=false;}:
-		  'a'
-		| 'b'
-		| 'f'
-		| 'n'
-		| 'r'
-		| 't'
-		| 'v'
-		| '"'
-		| '\''
-		| '\\'
-		| '?'
-		| ('0'..'3') (//{dummyVar}?=> //added by V3-Author //options{warnWhenFollowAmbig=false;}:
-		 Digit (//{dummyVar}?=> //added by V3-Author //options{warnWhenFollowAmbig=false;}:
-		  Digit)? )?
-		| ('4'..'7') (//{dummyVar}?=> //added by V3-Author //options{warnWhenFollowAmbig=false;}: 
-		Digit)?
-		| 'x' (//{dummyVar}?=> //added by V3-Author //options{warnWhenFollowAmbig=false;}:
-		 HexadecimalDigit)+ //Digit | 'a'..'f' | 'A'..'F')+
-		)
-	;
-
-// Numeric Constants: 
-
-
-fragment
-Digit
-	:	
-		'0'..'9'
-	;
-
-fragment
-Decimal
-	:	
-		('0'..'9')+
-	;
-
-fragment
-LongSuffix
-	:	'l'
-	|	'L'
-	;
-
-fragment
-UnsignedSuffix
-	:	'u'
-	|	'U'
-	;
-
-fragment
-FloatSuffix
-	:	'f'
-	|	'F'
-	;
-
-fragment
-Exponent
-	:	
-		('e'|'E') ('+'|'-')? (Digit)+
-	;
-
-fragment
-UniversalCharacterName
-	:
-		'\\u' HexQuad
-	|	'\\U' HexQuad HexQuad
-	;
-
-fragment
-HexQuad
-	:
-		HexadecimalDigit HexadecimalDigit HexadecimalDigit HexadecimalDigit 
-	;
-
-fragment
-HexadecimalDigit
-	:
-		('0'..'9'|'a'..'f'|'A'..'F')
-	;
-
-fragment
-Vocabulary
-	:	
-		'\u0003'..'\u0377'
-	;
-
-Number
-	:	
-		( (Digit)+ ('.' | 'e' | 'E') )=> 
-		(Digit)+
-		( '.' (Digit)* (Exponent)? {$type = FLOATONE;} //Zuo 3/12/01
-		| Exponent                 {$type = FLOATTWO;} //Zuo 3/12/01
-		)                          //{_ttype = DoubleDoubleConst;}
-		(FloatSuffix               //{_ttype = FloatDoubleConst;}
-		|LongSuffix                //{_ttype = LongDoubleConst;}
-		)?
-	|	
-		('...')=> '...'            {$type = ELLIPSIS;}
-	|	
-		'.'                        {$type = DOT;}
-		(	(Digit)+ (Exponent)?   {$type = FLOATONE;} //Zuo 3/12/01
-                                   //{_ttype = DoubleDoubleConst;}
-			(FloatSuffix           //{_ttype = FloatDoubleConst;}
-			|LongSuffix            //{_ttype = LongDoubleConst;}
-			)?
-		)?
-	|	
-		'0' ('0'..'7')*            //{_ttype = IntOctalConst;}
-		(LongSuffix                //{_ttype = LongOctalConst;}
-		|UnsignedSuffix            //{_ttype = UnsignedOctalConst;}
-		)*                         {$type = OCTALINT;}
-	|	
-		'1'..'9' (Digit)*          //{_ttype = IntIntConst;}
-		(LongSuffix                //{_ttype = LongIntConst;}
-		|UnsignedSuffix            //{_ttype = UnsignedIntConst;}
-		)*                         {$type = DECIMALINT;}  
-	|	
-		'0' ('x' | 'X') (HexadecimalDigit)+ //('a'..'f' | 'A'..'F' | Digit)+
-                                   //{_ttype = IntHexConst;}
-		(LongSuffix                //{_ttype = LongHexConst;}
-		|UnsignedSuffix            //{_ttype = UnsignedHexConst;}
-		)*                         {$type = HEXADECIMALINT;}   
-	;
-
+// complex tokens
 ID
-	//options {testLiterals = true;}
-	:
-		(('asm'|'_asm'|'__asm') Whitespace )=>
+  : LETTER (LETTER|'0'..'9')*
+  ;
+  
+fragment
+LETTER
+  : '$'
+  | 'A'..'Z'
+  | 'a'..'z'
+  | '_'
+  ;
 
-		('asm'|'_asm'|'__asm') 
-			(EndOfLine {deferredNewline();}
-			|Space
-			)+
-		(
-			LPAREN
-				(	EndOfLine {deferredNewline();}	
-				|	~(')' | '\r' | '\n')
-				)*	
-			RPAREN { $channel=HIDDEN; }
-		|
-			LCURLY
-				(	EndOfLine {deferredNewline();}	
-				|	~('}' | '\r' | '\n')
-				)*	
-			RCURLY { $channel=HIDDEN; }
-		|
-			// Single line asm statement
-			(~('(' | ')' | '{' | '}' | '\n' | '\r' | ' ' | '\t' | '\f'))
-			(~('(' | ')' | '{' | '}' | '\n' | '\r'))* (EndOfLine {/*newline();*/})?
-			{ $channel=HIDDEN; }
-		)
-	|	
-		('a'..'z'|'A'..'Z'|'_')
-		('a'..'z'|'A'..'Z'|'_'|'0'..'9')*
-	;
+CHARACTER_LITERAL
+  : 'L'? '\'' ( EscapeSequence | ~('\''|'\\') ) '\''
+  ;
+
+STRING_LITERAL
+  : 'L'? '"' ( EscapeSequence | ~('\\'|'"') )* '"'
+  ;
+
+HEX_LITERAL 
+  : '0' ('x'|'X') HexDigit+ IntegerTypeSuffix? 
+  ;
+
+DECIMAL_LITERAL 
+  : ('0' | '1'..'9' '0'..'9'*) IntegerTypeSuffix? 
+  ;
+
+OCTAL_LITERAL 
+  : '0' ('0'..'7')+ IntegerTypeSuffix? 
+  ;
 
 fragment
-OCTALINT:;
+HexDigit 
+  : ('0'..'9'|'a'..'f'|'A'..'F') 
+  ;
 
 fragment
-DECIMALINT:;
+IntegerTypeSuffix
+  : ('u'|'U')  ('l'|'L')
+  | ('u'|'U')
+  | ('l'|'L') ('l'|'L')?
+  ;
+
+FLOATING_POINT_LITERAL
+  : ('0'..'9')+ '.' ('0'..'9')* Exponent? FloatTypeSuffix?
+  | '.' ('0'..'9')+ Exponent? FloatTypeSuffix?
+  | ('0'..'9')+ Exponent FloatTypeSuffix
+  | ('0'..'9')+ Exponent
+  | ('0'..'9')+ FloatTypeSuffix
+  ;
 
 fragment
-HEXADECIMALINT:;
+Exponent 
+  : ('e'|'E') ('+'|'-')? ('0'..'9')+ 
+  ;
 
 fragment
-FLOATONE:;
+FloatTypeSuffix 
+  : ('f'|'F'|'d'|'D') 
+  ;
 
 fragment
-FLOATTWO:;
+EscapeSequence
+  : '\\' ('b'|'t'|'n'|'f'|'r'|'\"'|'\''|'\\')
+  | OctalEscape
+  ;
+
+fragment
+OctalEscape
+  : '\\' ('0'..'3') ('0'..'7') ('0'..'7')
+  | '\\' ('0'..'7') ('0'..'7')
+  | '\\' ('0'..'7')
+  ;
+
+fragment
+UnicodeEscape
+  : '\\' 'u' HexDigit HexDigit HexDigit HexDigit
+  | '\\' 'U' HexDigit HexDigit HexDigit HexDigit HexDigit HexDigit HexDigit HexDigit
+  ;
+  
+WS: (' '|'\r'|'\t'|'\u000C'|'\n')+ {$channel=HIDDEN;}
+  ;
+
+COMMENT
+  : '/*' ( options {greedy=false;} : . )* '*/' {$channel=HIDDEN;}
+  ;
+
+LINE_COMMENT
+  : '//' ~('\n'|'\r')* '\r'? '\n' {$channel=HIDDEN;}
+  ;
+
+PREPROCESSOR_COMMAND 
+  : '#' ~('\n'|'\r')* '\r'? '\n' {$channel=HIDDEN; recordHeader($line, $text);}
+  ;
+
+
+
