@@ -13,7 +13,9 @@ import org.apiwatch.models.APIStabilityViolation;
 import org.apiwatch.models.ChangeType;
 import org.apiwatch.models.Severity;
 import org.apiwatch.models.Symbol;
+import org.apiwatch.util.APIWatchExtension;
 
+@APIWatchExtension
 public class ModifiersChange extends RuleBase  implements APIStabilityRule {
 
     static final String ID = "MOD001";

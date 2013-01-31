@@ -13,8 +13,10 @@ import java.io.Writer;
 import java.util.List;
 
 import org.apiwatch.models.APIStabilityViolation;
+import org.apiwatch.util.APIWatchExtension;
 import org.apiwatch.util.errors.SerializationError;
 
+@APIWatchExtension
 public class APIStabilityViolationTextSerializer implements APIStabilityViolationSerializer {
 
     @Override

@@ -12,11 +12,13 @@ import java.io.Reader;
 import java.io.Writer;
 
 import org.apiwatch.models.APIScope;
+import org.apiwatch.util.APIWatchExtension;
 import org.apiwatch.util.errors.SerializationError;
 
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.io.json.JettisonMappedXmlDriver;
 
+@APIWatchExtension
 public class APIScopeJSONSerializer implements APIScopeSerializer {
 
     @Override

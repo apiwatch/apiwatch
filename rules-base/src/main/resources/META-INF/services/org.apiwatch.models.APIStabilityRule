@@ -1,6 +1,0 @@
-org.apiwatch.diff.rules.DependenciesChange
-org.apiwatch.diff.rules.ElementRemoval
-org.apiwatch.diff.rules.FunctionTypeChange
-org.apiwatch.diff.rules.ReducedVisibility
-org.apiwatch.diff.rules.SuperTypesChange
-org.apiwatch.diff.rules.VariableTypeChange

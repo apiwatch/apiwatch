@@ -13,7 +13,9 @@ import org.apiwatch.models.APIStabilityViolation;
 import org.apiwatch.models.ChangeType;
 import org.apiwatch.models.Severity;
 import org.apiwatch.models.Variable;
+import org.apiwatch.util.APIWatchExtension;
 
+@APIWatchExtension
 public class VariableTypeChange extends RuleBase implements APIStabilityRule {
 
     static final String ID = "TYP001";

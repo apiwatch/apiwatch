@@ -15,7 +15,9 @@ import org.apiwatch.models.APIStabilityViolation;
 import org.apiwatch.models.ChangeType;
 import org.apiwatch.models.Severity;
 import org.apiwatch.models.Visibility;
+import org.apiwatch.util.APIWatchExtension;
 
+@APIWatchExtension
 public class ReducedVisibility implements APIStabilityRule {
 
     static final String ID = "VIS001";

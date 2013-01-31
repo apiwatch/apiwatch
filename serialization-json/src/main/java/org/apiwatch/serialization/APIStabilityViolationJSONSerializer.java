@@ -13,11 +13,13 @@ import java.io.Writer;
 import java.util.List;
 
 import org.apiwatch.models.APIStabilityViolation;
+import org.apiwatch.util.APIWatchExtension;
 import org.apiwatch.util.errors.SerializationError;
 
 import com.thoughtworks.xstream.XStream;
 import com.thoughtworks.xstream.io.json.JettisonMappedXmlDriver;
 
+@APIWatchExtension
 public class APIStabilityViolationJSONSerializer implements APIStabilityViolationSerializer {
 
     @Override

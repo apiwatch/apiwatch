@@ -17,10 +17,12 @@ import org.apiwatch.analyser.Analyser;
 import org.apiwatch.analyser.LanguageAnalyser;
 import org.apiwatch.analyser.Option;
 import org.apiwatch.models.APIScope;
+import org.apiwatch.util.APIWatchExtension;
 import org.apiwatch.util.antlr.IterableTree;
 import org.apiwatch.util.antlr.IterableTreeAdaptor;
 import org.apiwatch.util.errors.ParseError;
 
+@APIWatchExtension
 public class JavaAnalyser implements LanguageAnalyser {
 
     private static final String LANGUAGE = "Java";
