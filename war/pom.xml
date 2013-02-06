@@ -86,6 +86,7 @@
                 <artifactId>maven-war-plugin</artifactId>
                 <version>2.2</version>
                 <configuration>
+                    <packagingExcludes>WEB-INF/lib/apiwatch-annotations-*.jar</packagingExcludes>
                     <archive>
                         <manifest>
                             <addDefaultImplementationEntries>true</addDefaultImplementationEntries>

@@ -113,35 +113,69 @@
 
 grammar CPP;
 
-options
-{  
-language = Java;
+options {  
+    //backtrack = true;
+    //memoize = true;
+    language = Java;
+    //k = 2;
+    output = AST;
+    ASTLabelType = IterableTree;
 }
 
 
-@parser::header
-{
+@parser::header {
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright (c) 2012, Robin Jarry, All rights reserved.               *
+ *                                                                     *
+ * This file is part of APIWATCH and published under the BSD license.  *
+ *                                                                     *
+ * See the "LICENSE" file for more information.                        *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+package org.apiwatch.analyser.cpp;
+ 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-
- extern "C++"
- {
- #include "header_file.h"
- }
-//typedef CPP_grammar_Parser_function_specifier_return FS_ret_t;
-//typedef CPP_grammar_Parser_type_specifier_return TS_ret_t;
+import org.apiwatch.util.antlr.IterableTree;
+import org.apiwatch.analyser.cpp.Header;
+import org.apiwatch.analyser.cpp.CPPSymbols;
+import org.apiwatch.analyser.cpp.ParserConstants.FunctionParserState;
+import org.apiwatch.analyser.cpp.ParserConstants.FunctionSpecifier;
+import org.apiwatch.analyser.cpp.ParserConstants.QualifiedItem;
+import org.apiwatch.analyser.cpp.ParserConstants.StorageClass;
+import org.apiwatch.analyser.cpp.ParserConstants.TypeQualifier;
+import org.apiwatch.analyser.cpp.ParserConstants.TypeSpecifier;
 }
 
-@parser::members
-{
- extern "C++"
- {
- #include "members_file.h"
+@parser::members {
 
- }
+int statementTrace = 2;
+CPPParser__ _p;
+
+List<Header> headers;
+
+// special constructor
+public CPPParser(TokenStream input, List<Header> headers) {
+    this(input, new RecognizerSharedState());
+    this.headers = headers;
 }
 
-@lexer::header
-{
+void parserInit() {
+    _p = new CPPParser__(input, 2);
+}
+
+void _debug(String msg, Object... params) {
+    if (statementTrace >= 1) {
+        msg = input.LT(1).getLine() + ": " + msg + "\n";
+		    System.out.printf(msg, params);
+    }
+}
+
+}
+
+@lexer::header {
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  * Copyright (c) 2012, Robin Jarry, All rights reserved.               *
  *                                                                     *
@@ -157,10 +191,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apiwatch.analyser.cpp.Header;
+
 }
 
-@lexer::members
-{
+@lexer::members {
 public List<String> systemPaths;
 public List<Header> headers; 
 private static final Pattern PREPROC_LINE = Pattern.compile("#\\s*(\\d+)\\s*\"(.+?)\"");
@@ -193,40 +227,33 @@ private void recordHeader(int line, String text) {
 
 }
 
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////  GENERAL RULES ////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
 
-//translation_unit
 translation_unit
-  @init
-  {
-    CPPParser__init();
-  }
-  :  {enterExternalScope();}
-    (external_declaration)*  EOF
-    {exitExternalScope();
-        }
-
+@init {
+    parserInit();
+}
+  : {_p.enterExternalScope();}
+    external_declaration*  EOF
+    {_p.exitExternalScope();}
   ;
 
 
 
 external_declaration  
-  @init
-  {
-   //char *s;
-   lineNo = LT(1)->line;
-   boolean K_and_R;
-   K_and_R = False;
-   //FunctionSpecifier
-   fs = fsInvalid;  // inline,virtual,explicit
-   //in_user_file = in_user_file_deferred;
-  }
+@init {
+   _p.lineNo = input.LT(1).getLine();
+   _p.KandR = false;
+   _p.functionSpecifier = FunctionSpecifier.Invalid;  // FunctionSpecifier : inline,virtual,explicit
+}
   :
-  (
     // Template explicit specialisation
     (Template LessThan GreaterThan)=>
-    {if(statementTrace>=1) 
-      printf("\%d external_declaration template explicit-specialisation\n",LT(1)->line);
-    }
+    {_debug("external_declaration template explicit-specialisation");}
     Template LessThan GreaterThan external_declaration
 
   |
@@ -234,200 +261,139 @@ external_declaration
     (TypeDef)=>
     (
       (TypeDef Enum)=>
-      {if(statementTrace>=1) 
-        printf("\%d external_declaration Typedef enum type\n",LT(1)->line);
-      }
-      TypeDef enum_specifier {_td = True;} (init_declarator_list)? SemiColon {end_of_stmt();}
+      {_debug("external_declaration Typedef enum type");}
+      TypeDef enum_specifier {_p.typeDef = true;} init_declarator_list? SemiColon 
     |
-      (declaration_specifiers function_declarator[0] SemiColon)=>  // DW 11/02/05 This may not be possible
-      {if(statementTrace>=1) 
-        printf("\%d external_declaration Typedef function type\n",LT(1)->line);
-      }
+      (declaration_specifiers function_declarator[false] SemiColon)=>  // DW 11/02/05 This may not be possible
+      {_debug("external_declaration Typedef function type");}
       declaration
     |
-      (declaration_specifiers (init_declarator_list)? SemiColon)=>
-      {if(statementTrace>=1) 
-        printf("\%d external_declaration Typedef variable type\n",LT(1)->line);
-      }
+      (declaration_specifiers init_declarator_list? SemiColon)=>
+      {_debug("external_declaration Typedef variable type");}
       declaration
     |
       (TypeDef class_specifier)=>
-      {if(statementTrace>=1) 
-        printf("\%d external_declaration Typedef class type\n",LT(1)->line);
-      }
-      TypeDef class_decl_or_def[fs] {_td = True;} (init_declarator_list)? SemiColon {end_of_stmt();}
+      {_debug("external_declaration Typedef class type");}
+      TypeDef class_decl_or_def {_p.typeDef = true;} init_declarator_list? SemiColon 
     )
     
   |  
     // Class template declaration or definition
-    (template_head (fs = function_specifier)* class_specifier)=>
-    {if (statementTrace>=1) 
-      printf("\%d external_declaration Templated class decl or def\n",LT(1)->line);
-    }
-    template_head (fs = function_specifier)* class_decl_or_def[fs] (init_declarator_list)? SemiColon {end_of_stmt();}  // declaration
+    (template_head function_specifier* class_specifier)=>
+    {_debug("external_declaration Templated class decl or def");}
+    template_head 
+    (fs=function_specifier {_p.functionSpecifier = $fs.val;})* 
+    class_decl_or_def 
+    init_declarator_list? 
+    SemiColon   // declaration
   |
     // Templated functions and constructors matched here.
-    {beginTemplateDeclaration();}
+    {_p.beginTemplateDeclaration();}
     template_head
     (  
       // templated forward class decl, init/decl of static member in template
-      (declaration_specifiers (init_declarator_list)? SemiColon {end_of_stmt();})=>
-      {if (statementTrace>=1) 
-        printf("\%d external_declaration Templated class forward declaration\n",LT(1)->line);
-      }
-      declaration_specifiers (init_declarator_list)? SemiColon {end_of_stmt();}
+      (declaration_specifiers (init_declarator_list)? SemiColon )=>
+      {_debug("external_declaration Templated class forward declaration");}
+      declaration_specifiers (init_declarator_list)? SemiColon 
     |  
       // Templated function declaration
-      (declaration_specifiers function_declarator[0] SemiColon)=> 
-      {if (statementTrace>=1) 
-        printf("\%d external_declaration Templated function declaration\n",LT(1)->line);
-      }
+      (declaration_specifiers function_declarator[false] SemiColon)=> 
+      {_debug("external_declaration Templated function declaration");}
       declaration
     |  
       // Templated function definition
-      (declaration_specifiers function_declarator[1] LCurly)=> 
-      {if (statementTrace>=1) 
-        printf("\%d external_declaration Templated function definition\n",LT(1)->line);
-      }
+      (declaration_specifiers function_declarator[true] LCurly)=> 
+      {_debug("external_declaration Templated function definition");}
       function_definition
     |
       // Templated constructor definition
                 // JEL 4/3/96 Added predicate that works once the
                 // restriction is added that ctor cannot be virtual
-      (  ctor_decl_spec 
-        {qualifiedItemIsOneOf(qiCtor,0)}?
-      )=>
-      {if (statementTrace>=1) 
-        printf("\%d external_declaration Templated constructor definition\n",LT(1)->line);
-      }
+      (ctor_decl_spec {_p.itemIs(QualifiedItem.Ctor)}?)=>
+      {_debug("external_declaration Templated constructor definition");}
       ctor_definition
     )
-    {endTemplateDeclaration();}
+    {_p.endTemplateDeclaration();}
   |  
     // Enum definition (don't want to backtrack over this in other alts)
-    (Enum (ID)? LCurly)=>
-    {if (statementTrace>=1) 
-      printf("\%d external_declaration Enum definition\n",LT(1)->line);
-    }
-    enum_specifier (init_declarator_list)? SemiColon {end_of_stmt();}
+    (Enum ID? LCurly)=>
+    {_debug("external_declaration Enum definition");}
+    enum_specifier init_declarator_list? SemiColon 
   |
     // Destructor definition (templated or non-templated)
-    ((template_head)? dtor_head[1] LCurly)=>
-    {if (statementTrace>=1) 
-      printf("\%d external_declaration Destructor definition\n",LT(1)->line);
-    }
-    (template_head)? dtor_head[1] dtor_body
+    (template_head? dtor_head[true] LCurly)=>
+    {_debug("external_declaration Destructor definition");}
+    template_head? dtor_head[true] dtor_body
   |  
     // Constructor definition (non-templated)
     // JEL 4/3/96 Added predicate that works, once the
     // restriction is added that ctor cannot be virtual
     // and ctor_declarator uses a more restrictive id
-    (  (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-       ctor_decl_spec)?
-      {qualifiedItemIsOneOf(qiCtor,0)}?
-    )=>
-    {if (statementTrace>=1) 
-      printf("\%d external_declaration Constructor definition\n",LT(1)->line);
-    }
+    ( ctor_decl_spec?  {_p.itemIs(QualifiedItem.Ctor)}?)=>
+    {_debug("external_declaration Constructor definition");}
     ctor_definition
   |  
     // User-defined type cast
     ((Inline)? scope_override  conversion_function_decl_or_def)=>
-    {if (statementTrace>=1) 
-      printf("\%d external_declaration Operator function\n",LT(1)->line);
-    }
+    {_debug("external_declaration Operator function");}
     (Inline)? s = scope_override conversion_function_decl_or_def 
   |   
     // Function declaration
-    (declaration_specifiers function_declarator[0] SemiColon)=> 
-    {if (statementTrace>=1) 
-      printf("\%d external_declaration Function declaration\n",LT(1)->line);
-    }
-    declaration_specifiers function_declarator[0] SemiColon {end_of_stmt();}
+    (declaration_specifiers function_declarator[false] SemiColon)=> 
+    {_debug("external_declaration Function declaration");}
+    declaration_specifiers function_declarator[false] SemiColon 
   |
     // Function definition
-    (declaration_specifiers  function_declarator[1] LCurly)=> 
-    {if (statementTrace>=1) 
-      printf("\%d external_declaration Function definition\n",LT(1)->line);
-    }
+    (declaration_specifiers  function_declarator[true] LCurly)=> 
+    {_debug("external_declaration Function definition");}
     function_definition
   |
     // Function definition with int return assumed
-    (function_declarator[1] LCurly)=> 
-    {if (statementTrace>=1) 
-      printf("\%d external_declaration Function definition without return type\n",LT(1)->line);
-    }
+    (function_declarator[true] LCurly)=> 
+    {_debug("external_declaration Function definition without return type");}
     function_definition
   |
     // K & R Function definition
-    (declaration_specifiers  function_declarator[1] declaration)=>
-    {K_and_R = True;
-     if (statementTrace>=1) 
-      printf("\%d external_declaration K & R function definition\n",LT(1)->line);
-    }
+    (declaration_specifiers  function_declarator[true] declaration)=>
+    {_p.KandR = true;
+     _debug("external_declaration K & R function definition");}
     function_definition
   |
     // K & R Function definition with int return assumed
-    (function_declarator[1] declaration)=>
-    {K_and_R = True;
-     if (statementTrace>=1) 
-      printf("\%d external_declaration K & R function definition without return type\n",LT(1)->line);
-    }
+    (function_declarator[true] declaration)=>
+    {_p.KandR = true;
+     _debug("external_declaration K & R function definition without return type");}
     function_definition
   |
     // Class declaration or definition
-    ((Extern)? (fs = function_specifier)* class_specifier)=>
-    {if (statementTrace>=1) 
-      printf("\%d external_declaration Class decl or def\n",LT(1)->line);
-    }
-    (Extern)? (fs = function_specifier)* class_decl_or_def[fs] (init_declarator_list)? SemiColon {end_of_stmt();}
-
-
-  // by the V3-Author, concepts, copied from the above class def/decl
-  //|
-    // Concept declaration or definition
-    //('concept' ID LCurly)=>
-    //{if (statementTrace>=1) 
-    //  fprintf(stderr,"\%d external_declaration Concept decl or def\n\t begining at pos \%d\n",LT(1)->line, LT(1)->charPosition+1);
-    // }
-    //concept_decl_or_def 
-    //{
-    //  if (statementTrace>=1) 
-    //  fprintf(stderr,"\t ending in line \%d at pos \%d\n",LT(1)->line, LT(1)->charPosition+1);
-     //}
-
-    //  SemiColon 
-    //  {
-    //  end_of_stmt();}
-
+    (Extern? function_specifier* class_specifier)=>
+    {_debug("external_declaration Class decl or def");}
+    (Extern)? 
+    (fs=function_specifier {_p.functionSpecifier = $fs.val;})*  
+    class_decl_or_def 
+    init_declarator_list? 
+    SemiColon 
 
   |
     // Copied from member_declaration 31/05/07
-    (declaration_specifiers (init_declarator_list)? SemiColon)=>
-    {if (statementTrace>=1) 
-      printf("\%d external_declaration Declaration\n",LT(1)->line);
-    }
+    (declaration_specifiers init_declarator_list? SemiColon)=>
+    {_debug("external_declaration Declaration");}
     declaration
 
   |  
     // Namespace definition
-    {if (statementTrace>=1) 
-      printf("\%d external_declaration Namespace definition\n",LT(1)->line);
-    }
+    {_debug("external_declaration Namespace definition");}
     Namespace namespace_definition
   |  
     // Semicolon
-    {if (statementTrace>=1) 
-      printf("\%d external_declaration Semicolon\n",LT(1)->line);
-    }
-    SemiColon {end_of_stmt();}
+    {_debug("external_declaration Semicolon");}
+    SemiColon 
   |  
     // Anything else 
-    {if (statementTrace>=1) 
-      printf("\%d external_declaration Other Declaration\n",LT(1)->line);
-    }
+    {_debug("external_declaration Other Declaration");}
     declaration
-
+  ;
+/**
   |  
     // The next two entries may be used for debugging
     // Use this statement in the source code to turn antlr trace on (See note above)
@@ -438,137 +404,99 @@ external_declaration
 
   )
   ;
+**/
 
-//member_declaration
 member_declaration
-  //options{backtrack=true;}
-  @init
-  {
-    //char *q;
-  lineNo = LT(1)->line;
-  //FunctionSpecifier fs = fsInvalid;  // inline,virtual,explicit
-  }
+@init {
+    _p.lineNo = input.LT(1).getLine();
+}
   :
-  (
     // Template explicit specialisation
     (Template LessThan GreaterThan)=>
-    {if(statementTrace>=1) 
-      printf("\%d member_declaration Template explicit-specialisation\n",LT(1)->line);
-    }
+    {_debug("member_declaration Template explicit-specialisation");}
     Template LessThan GreaterThan member_declaration
   |
-  
     // All typedefs
-  //(options{backtrack=true;}:
-   // (
     (TypeDef)=>
     (
       (TypeDef Enum)=>
-      {if(statementTrace>=1) 
-        printf("\%d member_declaration Typedef enum type\n",LT(1)->line);
-      }
-      TypeDef enum_specifier {_td = True;} (init_declarator_list)? SemiColon {end_of_stmt();}
+      {_debug("member_declaration Typedef enum type");}
+      TypeDef enum_specifier {_p.typeDef = true;} (init_declarator_list)? SemiColon 
     |
-      (declaration_specifiers function_declarator[0] SemiColon)=>  // DW 11/02/05 This may not be possible member declaration
-      {if(statementTrace>=1) 
-        printf("\%d member_declaration Typedef function type\n",LT(1)->line);
-      }
+      (declaration_specifiers function_declarator[false] SemiColon)=>  // DW 11/02/05 This may not be possible member declaration
+      {_debug("member_declaration Typedef function type");}
       declaration
-      //SemiColon
     |
-      (declaration_specifiers (init_declarator_list)? SemiColon)=>
-      {if(statementTrace>=1) 
-        printf("\%d member_declaration Typedef variable type\n",LT(1)->line);
-      }
+      (declaration_specifiers init_declarator_list? SemiColon)=>
+      {_debug("member_declaration Typedef variable type");}
       declaration
-      //SemiColon
     |
       (TypeDef class_specifier)=>
-      {if(statementTrace>=1) 
-        printf("\%d member_declaration Typedef class type\n",LT(1)->line);
-      }
-      TypeDef class_decl_or_def[fs] {_td = True;} (init_declarator_list)? SemiColon {end_of_stmt();}
+      {_debug("member_declaration Typedef class type");}
+      TypeDef class_decl_or_def {_p.typeDef = true;} init_declarator_list? SemiColon 
     )
-   //)
-  //)
+    
   |
     // Function declaration
-    (declaration_specifiers  function_declarator[0] SemiColon)=>
-    {if (statementTrace>=1) 
-      printf("\%d member_declaration Function declaration\n",LT(1)->line);
-    }
-    declaration_specifiers function_declarator[0] SemiColon {end_of_stmt();}
+    (declaration_specifiers  function_declarator[false] SemiColon)=>
+    {_debug("member_declaration Function declaration");}
+    declaration_specifiers function_declarator[false] SemiColon 
   
   |  
     // Function definition
-    (declaration_specifiers function_declarator[1] LCurly)=>
-    {if (statementTrace>=1) 
-      printf("\%d member_declaration Function definition\n",LT(1)->line);
-    }
+    (declaration_specifiers function_declarator[true] LCurly)=>
+    {_debug("member_declaration Function definition");}
     function_definition
-  ////  
+
   |
     // Class declaration or definition
-    ((Friend)? (fs = function_specifier)* class_specifier)=>
-    {if (statementTrace>=1) 
-      printf("\%d member_declaration Class decl or def\n",LT(1)->line);
-    }
-    (Friend)? (fs = function_specifier)* class_decl_or_def[fs] (init_declarator_list)? SemiColon {end_of_stmt();}
+    ((Friend)? function_specifier* class_specifier)=>
+    {_debug("member_declaration Class decl or def");}
+    Friend? 
+    (fs=function_specifier {_p.functionSpecifier = $fs.val;})* 
+    class_decl_or_def 
+    init_declarator_list? 
+    SemiColon 
   | 
-    (declaration_specifiers (init_declarator_list)? SemiColon)=>
-    {if (statementTrace>=1) 
-      printf("\%d member_declaration Declaration\n",LT(1)->line);
-    }
-    declaration //HERE//
+    (declaration_specifiers init_declarator_list? SemiColon)=>
+    {_debug("member_declaration Declaration");}
+    declaration
   |
-
-    
     // Member without a type (I guess it can only be a function declaration or definition)
-    ((fs = function_specifier)* function_declarator[0] SemiColon)=>
-    {fprintf(stderr,"\%d warning Function declaration found without return type\n",LT(1)->line);
-     if (statementTrace>=1) 
-      printf("\%d member_declaration Function declaration\n",LT(1)->line);
-    }
-    (fs = function_specifier)* function_declarator[0] SemiColon {end_of_stmt();}
+    (function_specifier* function_declarator[false] SemiColon)=>
+    {_debug("warning Function declaration found without return type");
+     _debug("member_declaration Function declaration");}
+    (fs=function_specifier {_p.functionSpecifier = $fs.val;})* 
+    function_declarator[false] 
+    SemiColon 
   |
     // Member without a type (I guess it can only be a function definition)
-    ((fs = function_specifier)* function_declarator[1] LCurly)=>
-    {fprintf(stderr,"\%d warning Function definition found without return type\n",LT(1)->line);
-     if (statementTrace>=1) 
-      printf("\%d member_declaration Function definition without return type\n",LT(1)->line);
-    }
-    (fs = function_specifier)* function_declarator[1] compound_statement {endFunctionDefinition();}
+    (function_specifier* function_declarator[true] LCurly)=>
+    {_debug("warning Function definition found without return type");
+     _debug("member_declaration Function definition without return type");}
+    (fs=function_specifier {_p.functionSpecifier = $fs.val;})* 
+    function_declarator[true] 
+    compound_statement 
+    {_p.endFunctionDefinition();}
   |
-  
-  
-  
-  
-
-
-  
     // Templated class declaration or definition
-    (template_head (fs = function_specifier)* class_specifier)=>
-    {if (statementTrace>=1) 
-      printf("\%d member_declaration Templated class decl or def\n",LT(1)->line);
-    }
-    template_head (fs = function_specifier)* class_decl_or_def[fs] (init_declarator_list)? SemiColon {end_of_stmt();}  // declaration
+    (template_head function_specifier* class_specifier)=>
+    {_debug("member_declaration Templated class decl or def");}
+    template_head 
+    (fs=function_specifier {_p.functionSpecifier = $fs.val;})* 
+    class_decl_or_def 
+    init_declarator_list? 
+    SemiColon   // declaration
   |  
     // Enum definition (don't want to backtrack over this in other alts)
-    (Enum (ID)? LCurly)=>
-    {if (statementTrace>=1) 
-      printf("\%d member_declaration Enum definition\n",LT(1)->line);
-    }
-    enum_specifier (init_declarator_list)? SemiColon  {end_of_stmt();}
+    (Enum ID? LCurly)=>
+    {_debug("member_declaration Enum definition");}
+    enum_specifier init_declarator_list? SemiColon  
   |
     // Constructor declarator
-    (  ctor_decl_spec
-      {qualifiedItemIsOneOf(qiCtor,0)}? 
-      ctor_declarator[0] SemiColon
-    )=>
-    {if (statementTrace>=1) 
-      printf("\%d member_declaration Constructor declarator\n",LT(1)->line);
-    }
-    ctor_decl_spec ctor_declarator[0] SemiColon {end_of_stmt();}
+    ( ctor_decl_spec {_p.itemIs(QualifiedItem.Ctor)}? ctor_declarator[false] SemiColon)=>
+    {_debug("member_declaration Constructor declarator");}
+    ctor_decl_spec ctor_declarator[false] SemiColon 
   |  
     // JEL Predicate to distinguish ctor from function
     // This works now that ctor cannot have Virtual
@@ -576,63 +504,49 @@ member_declaration
     // class -- this will have to be checked semantically
     // Constructor definition
     (  ctor_decl_spec
-      {qualifiedItemIsOneOf(qiCtor,0)}?
-      ctor_declarator[1]
+      {_p.itemIs(QualifiedItem.Ctor)}?
+      ctor_declarator[true]
       (Colon        // DEFINITION :ctor_initializer
       |LCurly       // DEFINITION (compound Statement) ?
       )
     )=>
-    {if (statementTrace>=1) 
-      printf("\%d member_declaration Constructor definition\n",LT(1)->line);
-    }
+    {_debug("member_declaration Constructor definition");}
     ctor_definition 
   |  
     // No template_head allowed for dtor member
     // Backtrack if not a dtor (no Tilde)
     // Destructor declaration
-    (dtor_head[0] SemiColon)=>
-    {if (statementTrace>=1) 
-      printf("\%d member_declaration Destructor declaration\n",LT(1)->line);
-    }
-    dtor_head[0] SemiColon {end_of_stmt();}
-  |//
+    (dtor_head[false] SemiColon)=>
+    {_debug("member_declaration Destructor declaration");}
+    dtor_head[false] SemiColon 
+  |
     // No template_head allowed for dtor member
     // Backtrack if not a dtor (no Tilde)
     // Destructor definition
-    (dtor_head[1] LCurly)=>
-    {if (statementTrace>=1) 
-      printf("\%d member_declaration Destructor definition\n",LT(1)->line);
-    }
-    dtor_head[1] dtor_body
+    (dtor_head[true] LCurly)=>
+    {_debug("member_declaration Destructor definition");}
+    dtor_head[true] dtor_body
   |  
     // User-defined type cast
-    ((Inline)? conversion_function_decl_or_def)=>
-    {if (statementTrace>=1) 
-      printf("\%d member_declaration Operator function\n",LT(1)->line);
-    }
-    (Inline)? conversion_function_decl_or_def
+    (Inline? conversion_function_decl_or_def)=>
+    {_debug("member_declaration Operator function");}
+    Inline? conversion_function_decl_or_def
   |  
     // Hack to handle decls like "superclass::member",
     // to redefine access to private base class public members
     // Qualified identifier
     (qualified_id SemiColon)=>
-    {if (statementTrace>=1) 
-      printf("\%d member_declaration Qualified ID\n",LT(1)->line);
-    }
-    q = qualified_id SemiColon {end_of_stmt();}
-  ////  
+    {_debug("member_declaration Qualified ID");}
+    qualified_id SemiColon 
   |
     // Access specifier  
-    {if (statementTrace>=1) 
-      printf("\%d member_declaration Access specifier\n",LT(1)->line);
-    }
+    {_debug("member_declaration Access specifier");}
     access_specifier Colon
   |
-    // Semicolon
-    {if (statementTrace>=1) 
-      printf("\%d member_declaration Semicolon\n",LT(1)->line);
-    }
-    SemiColon {end_of_stmt();}
+    SemiColon 
+  ;
+  
+/**
   |  
     // The next two entries may be used for debugging
     // Use this statement in the source code to turn antlr trace on (See note above)
@@ -640,407 +554,288 @@ member_declaration
   |
     // Use this statement in the source code to turn antlr trace off (See note above)
     'antlrTrace_off' {antlrTrace(False);}
-
-
-
-  
-  
   )
   ;
   
- 
+ **/
 
-//namespace_definition
 namespace_definition
-  :
-    (ns=ID{declaratorID(($ns.text->chars),qiType);})?
+  : (ID {_p.declaratorID($ID.text, QualifiedItem.Type);} )?
     LCurly 
-    {enterNewLocalScope();}
-    (external_declaration)*
-    {exitLocalScope();}
+    {_p.enterNewLocalScope();}
+    external_declaration*
+    {_p.exitLocalScope();}
     RCurly
   ;
 
-//namespace_alias_definition
 namespace_alias_definition
-  //{
-  //char *qid;
-  //}
-  :
-    Namespace
-    ns2=ID {declaratorID(($ns2.text->chars),qiType);}
-    Assign qid = qualified_id SemiColon {end_of_stmt();} 
+  : Namespace ID Assign qualified_id SemiColon {_p.declaratorID($ID.text, QualifiedItem.Type);} 
   ;
 
-//function_definition
 function_definition
-  @init
-  {
-  lineNo = LT(1)->line;
-  }
-  :
-  (  // Next line is equivalent to guarded predicate in PCCTS
-    // (Scope | ID)? => <<qualifiedItemIsOneOf(qiType|qiCtor)>>?
-    {( !(LA(1)==Scope||LA(1)==ID) || qualifiedItemIsOneOf(qiType|qiCtor,0) )}? 
-    declaration_specifiers function_declarator[1]
-    (  //{dummyVar}? //added by V3-Author //options{warnWhenFollowAmbig = False;}:
+@init {
+    _p.lineNo = input.LT(1).getLine();
+}
+@after {
+    _p.endFunctionDefinition();
+}
+  : {input.LA(1) != Scope && input.LA(1) != ID || _p.itemIs(QualifiedItem.Type|QualifiedItem.Ctor)}? 
+    declaration_specifiers function_declarator[true]
+    (
       (declaration)=> 
-      ({lineNo = LT(1)->line;} declaration)*  // Possible for K & R definition
-      {in_parameter_list = False;}
+      ({_p.lineNo = input.LT(1).getLine();} declaration)*  // Possible for K & R definition
+      {_p.inParameterList = false;}
     )?
     compound_statement
   |  
-    function_declarator[1]
-    (  //{dummyVar}? //added by V3-Author //options{warnWhenFollowAmbig = False;}:
+    function_declarator[true]
+    (
       (declaration)=>
-      ({lineNo = LT(1)->line;} declaration)*  // Possible for K & R definition
-      {in_parameter_list = False;}
+      ({_p.lineNo = input.LT(1).getLine();} declaration)*  // Possible for K & R definition
+      {_p.inParameterList = false;}
     )?
     compound_statement
-  )
-  {endFunctionDefinition();}
   ;
 
-//declaration
 declaration
-  :  
-    (Extern StringLiteral)=>
-    linkage_specification
-  |  
-    simple_declaration
-  |  
-    using_statement
+  : (Extern StringLiteral)=> linkage_specification
+  | simple_declaration
+  | using_statement
   ;
 
 
-//linkage_specification
 linkage_specification
-  :  
-    Extern
-    StringLiteral
-    (LCurly (external_declaration)* RCurly
-    |declaration
-    )
+  : Extern StringLiteral (LCurly external_declaration* RCurly | declaration)
   ;
 
-//class_head
+// Used only by predicates
 class_head
-  :  // Used only by predicates
-    (Struct
-    |Union 
-    |Class 
-    )
+  : (Struct|Union|Class)
     (ID  
       (LessThan template_argument_list GreaterThan)?
-      (base_clause)? 
+      base_clause? 
     )? 
     LCurly
   ;
 
-//declaration_specifiers
 declaration_specifiers
-  @init
-  {// Locals
-  boolean td = False;  // For typedef
-  boolean fd = False;  // For friend
-   sc = scInvalid;  // auto,register,static,extern,mutable
-   tq = tqInvalid;  // const,volatile  // aka cv_qualifier See type_qualifier
-   ts = tsInvalid;  // char,int,double, etc., class,struct,union
-   fs = fsInvalid;  // inline,virtual,explicit
-  //}
-  //:
-  //{
-  // Global flags to allow for nested declarations
-  _td = False;    // For typedef
-  _fd = False;    // For friend
-  _sc = scInvalid;  // For StorageClass    // auto,register,static,extern,mutable
-  _tq = tqInvalid;  // For TypeQualifier  // aka cv_qualifier See type_qualifier
-  _ts = tsInvalid;  // For TypeSpecifier
-  _fs = fsInvalid;  // For FunctionSpecifier  // inline,virtual,explicit
-  }
+@init {
+    // Locals
+    boolean td = false;  // For typedef
+    boolean fd = false;  // For friend
+    int sc = StorageClass.Invalid;  // auto,register,static,extern,mutable
+    int tq = TypeQualifier.Invalid;  // const,volatile  // aka cv_qualifier See type_qualifier
+    int ts = TypeSpecifier.Invalid;  // char,int,double, etc., class,struct,union
+    int fs = FunctionSpecifier.Invalid;  // inline,virtual,explicit
+
+    // Global flags to allow for nested declarations
+    _p.typeDef = td;
+    _p.friend = fd;
+    _p.storageClass = sc;
+    _p.typeQualifier = tq;
+    _p.typeSpecifier = ts;
+    _p.functionSpecifier = fs;
+}
   :
-  (  
-    (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-      TypeDef  {td=True;}      
-    |  Friend  {fd=True;}
-    |  sc = storage_class_specifier  // auto,register,static,extern,mutable
-    |  tq = type_qualifier    // const,volatile  // aka cv_qualifier See type_qualifier
-    |  fs = function_specifier  // inline,virtual,explicit
-    |  DeclSpec LParen ID RParen 
-    )* 
-    ts = type_specifier
-    (tq = type_qualifier)*    // const,volatile  // aka cv_qualifier See type_qualifier
-  )
-  {_td=td; declarationSpecifier(td,fd,sc,tq,ts,fs);}
+	  ( 
+	    TypeDef                    {td = true;}      
+	  | Friend                     {fd = true;}
+	  | storage_class_specifier    {sc |= $storage_class_specifier.val;}
+	  | tq1=type_qualifier         {tq |= $tq1.val;}
+	  | function_specifier         {fs |= $function_specifier.val;}
+	  | DeclSpec LParen ID RParen
+	  )*
+	  
+	  type_specifier               {ts = $type_specifier.val;}
+	  tq2=type_qualifier*          {tq |= $tq2.val;}
+  
+  {_p.typeDef = td; _p.declarationSpecifier(td, fd, sc, tq, ts, fs);}
+  
   ;
 
 
-//storage_class_specifier
-storage_class_specifier returns [StorageClass sc]
-  @init
-  {
-  sc = scInvalid;
-  }
-  :  Auto    {sc = scAuto;}
-  |  Register  {sc = scRegister;}
-  |  Static  {sc = scStatic;}
-  |  Extern  {sc = scExtern;}
-  |  Mutable  {sc = scMutable;}
+storage_class_specifier returns [int val]
+  : Auto        {$val = StorageClass.Auto;}
+  | Register    {$val = StorageClass.Register;}
+  | Static      {$val = StorageClass.Static;}
+  | Extern      {$val = StorageClass.Extern;}
+  | Mutable     {$val = StorageClass.Mutable;}
   ;
 
 
-//function_specifier
-function_specifier returns [FunctionSpecifier fs]
-  @init
-  {
-  fs = fsInvalid;
-  }
-  :  Inline             {fs = fsInline;}
-  |  Virtual            {fs = fsVirtual;}
-  |  Explicit            {fs = fsExplicit;}
-  ;
-
-//type_specifier
-type_specifier returns [TypeSpecifier ts]
-  @init
-  {//char *s;
-   TypeQualifier tq = tqInvalid;
-    ts = tsInvalid;
-  }
-  :  // ts = simple_type_specifier 
-    lbl_ts = simple_type_specifier 
-    //added by V3-Author
-    { ts = lbl_ts; }
+function_specifier returns [int val]
+  : Inline      {$val = FunctionSpecifier.Inline;}
+  | Virtual     {$val = FunctionSpecifier.Virtual;}
+  | Explicit    {$val = FunctionSpecifier.Explicit;}
   ;
 
 
-
-
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-//simple_type_specifier
-simple_type_specifier returns [TypeSpecifier ts]
-  @init
-  {
-  //char *s;
-  ts = tsInvalid; 
-  }
-  :  //(options{backtrack=true;}:
-    (
-      {qualifiedItemIsOneOf(qiType|qiCtor,0)}?
-       s = qualified_type
-    |
-    //lbl_ts changed by V3-Author
-      (TypeName|Enum| lbl_ts = class_specifier {ts=lbl_ts;}) 
-       s = qualified_type
-      {declaratorID($s.text->chars,qiType);}  // This stores typename name in dictionary
-    |  
-      (  Char    {ts |= tsChar;}
-      |  WChar_T  {ts |= tsWChar_T;}  
-      |  Bool    {ts |= tsBool;}
-      |  Short    {ts |= tsShort;}
-      |  Int    {ts |= tsInt;}
-      |  Long    {ts |= tsLong;}
-      |  Signed  {ts |= tsSigned;}
-      |  Unsigned  {ts |= tsUnsigned;}
-      |  Float    {ts |= tsFloat;}
-      |  Double  {ts |= tsDouble;}
-      |  Void    {ts |= tsVoid;}
-      )+
-    )
-    //)
+type_specifier returns [int val]
+@init {
+    $val = TypeSpecifier.Invalid; 
+}
+  : {_p.itemIs(QualifiedItem.Type|QualifiedItem.Ctor)}? qualified_type
+  | ( TypeName | Enum | class_specifier) q=qualified_type {_p.declaratorID($q.name, QualifiedItem.Type);}  // store typename in dictionary
+  | ( builtin_type {$val |= $builtin_type.val;} )+
   ;
+
+builtin_type returns [int val]
+  : Void       {$val = TypeSpecifier.Void;}
+  | Int        {$val = TypeSpecifier.Int;}
+  | Long       {$val = TypeSpecifier.Long;}
+  | Char       {$val = TypeSpecifier.Char;}
+  | WChar_T    {$val = TypeSpecifier.WChar_T;}
+  | Bool       {$val = TypeSpecifier.Bool;}
+  | Short      {$val = TypeSpecifier.Short;}
+  | Signed     {$val = TypeSpecifier.Signed;}
+  | Unsigned   {$val = TypeSpecifier.Unsigned;}
+  | Float      {$val = TypeSpecifier.Float;}
+  | Double     {$val = TypeSpecifier.Double;}
+  ;
+
 
 //qualified_type
-qualified_type returns [char* qit]
-  @init
-  {
-  //char *so = NULL;
-   char qitem01[1024];//CPPParser_MaxQualifiedItemSize+1];
-   qitem01[0] = '\0';
-  }
+qualified_type returns [String name]
   : 
     // JEL 3/29/96 removed this predicate and moved it upwards to
-    // simple_type_specifier.  This was done to allow parsing of ~ID to 
+    // type_specifier.  This was done to allow parsing of ~ID to 
     // be a unary_expression, which was never reached with this 
     // predicate on
-    // {qualifiedItemIsOneOf(qiType|qiCtor,0)}?
-
-    so=scope_override 
-    {
-    if(NULL!=(char*)$so.text->chars)
-     strcpy(qitem01, (char*)$so.text->chars);
-    }
-    id=ID 
-    {
-     strcat(qitem01, (char*)$id.text->chars);
-     $qit = qitem01;
-    }
-    (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-     LessThan template_argument_list GreaterThan
-    )?
+    // 
+    scope_override ID 
+    (
+      options {backtrack=true;}:
+      LessThan 
+      template_argument_list 
+      GreaterThan
+    )? 
+    {$name=$ID.text;}
   ;
 
-//class_specifier
-class_specifier returns [TypeSpecifier ts]
-  @init
-  {
-   ts = tsInvalid;
-  }
-  :  
-    (Class  {ts = tsClass;}  
-    |Struct  {ts = tsStruct;}
-    |Union  {ts = tsUnion;}
-    )
+class_specifier returns [int val]
+  : Class  {$val = TypeSpecifier.Class;} 
+  | Struct {$val = TypeSpecifier.Struct;} 
+  | Union  {$val = TypeSpecifier.Union;}  
   ;
 
-//type_qualifier
-type_qualifier returns [TypeQualifier tq] // aka cv_qualifier
-  @init
-  {
-   tq = tsInvalid;
-  }
-  :  
-    (Const  {tq = tqConst;} 
-    |Volatile  {tq = tqVolatile;}
-    )
+// aka cv_qualifier
+type_qualifier returns [int val] 
+  : Const     {$val = TypeQualifier.Const;} 
+  | Volatile  {$val = TypeQualifier.Volatile;}
   ;
 
 
-//class_decl_or_def
-class_decl_or_def [FunctionSpecifier fs] 
-  @init
-  {char *saveClass; 
-  // char *id;
-  char qid[1024+1];//CPPParser_MaxQualifiedItemSize+1];
-  TypeSpecifier ts = tsInvalid;  // Available for use
-  }
-  :  
-    (Class  {ts = tsClass;}  
-    |Struct  {ts = tsStruct;}
-    |Union  {ts = tsUnion;}
-    )
+class_decl_or_def
+@init {
+    String saveClass = _p.enclosingClass;
+    int typeSpec = TypeSpecifier.Invalid;
+}
+  : class_specifier {typeSpec = $class_specifier.val;}
+   
     (DeclSpec LParen expression RParen)*  // Temp for Evgeniy
-    (  id = qualified_id
-      {strcpy(qid,(char*)$id.text->chars);}
-      (//{dummyVar}? //added by V3-Author //options{generateAmbigWarnings = false;}:
-        (SemiColon|member_declarator)=>
-        // Empty 
-        {classForwardDeclaration(qid, ts, fs);}  // This stores class name in dictionary
+    
+    ( 
+      id = qualified_id
+      (
+        (SemiColon|member_declarator)=> /* Empty (stop matching any more tokens) */
+        {
+          _p.classForwardDeclaration($id.name, typeSpec); // store class name in dictionary
+        } 
       |
         (base_clause)?
         LCurly
-        {saveClass = enclosingClass; enclosingClass = "symbols->strdup(qid)"; 
-         beginClassDefinition(qid, ts);}  // This stores class name in dictionary
-        (member_declaration)*
-        {endClassDefinition();}
+        {
+          saveClass = _p.enclosingClass; 
+          _p.enclosingClass = "symbols->strdup(qid)"; 
+          _p.beginClassDefinition($id.name, typeSpec); // This stores class name in dictionary
+        }
+        member_declaration*
+        {
+          _p.endClassDefinition();
+        }
         RCurly
-        {enclosingClass = saveClass;}
+        {
+          _p.enclosingClass = saveClass;
+        }
       )
     |
       LCurly
-      {saveClass = enclosingClass; enclosingClass = "__anonymous";
-       beginClassDefinition("anonymous", ts);}  // This stores "anonymous" name in dictionary
-      (member_declaration)*
-      {endClassDefinition();}
+      {
+        saveClass = _p.enclosingClass; 
+        _p.enclosingClass = "__anonymous";
+        _p.beginClassDefinition("anonymous", typeSpec);  // This stores "anonymous" name in dictionary
+      }
+      member_declaration*
+      {
+        _p.endClassDefinition();
+      }
       RCurly
-      {enclosingClass = saveClass;}
+      {
+        _p.enclosingClass = saveClass;
+      }
     )
   ;
 
-//base_clause
 base_clause
-  :  
-    Colon base_specifier (Comma base_specifier)*
+  : Colon base_specifier (Comma base_specifier)*
   ;
 
-//base_specifier
 base_specifier
-  //{char *qt;}
-  :  
-    (  Virtual (access_specifier)? qt = qualified_type 
-    |  access_specifier (Virtual)? qt = qualified_type
-    |  qt = qualified_type
-    )
+  : Virtual access_specifier? qualified_type 
+  | access_specifier Virtual? qualified_type
+  | qualified_type
   ;
 
-//access_specifier
 access_specifier
-  :  
-    (  Public
-    |  Protected
-    |  Private
-    )
+  : Public
+  | Protected
+  | Private
   ;
 
-//enum_specifier
 enum_specifier
-  //{char *id;}
-  :  
-    Enum
+  : Enum
     (  
       LCurly enumerator_list RCurly
     |  
-      id = qualified_id
-      {beginEnumDefinition((char*)$id.text->chars);}  // This stores id name as an enum type in dictionary
+      qualified_id
+      {_p.beginEnumDefinition($qualified_id.name);}  // This stores id name as an enum type in dictionary
       (LCurly enumerator_list RCurly)?
-      {endEnumDefinition();}
+      {_p.endEnumDefinition();}
     )
   ;
 
-//enumerator_list
 enumerator_list
-  :  
-    enumerator (Comma (enumerator)? )*  // Allows comma at end of list
+  : enumerator (Comma enumerator? )*  // Allows comma at end of list
   ;
 
-//enumerator
 enumerator
-  :  
-    id=ID (Assign constant_expression)?
-    {enumElement((char*)($id.text->chars));}  // This stores id name in dictionary
+  : ID (Assign constant_expression)?
+    {_p.enumElement($ID.text);}  // This stores id name in dictionary
   ;
-
-
-
 
 // This matches a generic qualified identifier ::T::B::foo
- // (including Operator).
- // It might be a good idea to put T::~dtor in here
- // as well, but id_expression in expr.g puts it in manually.
- // Maybe not, 'cause many people use this assuming only A::B.
- // How about a 'qualified_complex_id'?
-//
-//qualified_id
-qualified_id returns [char* qid]
-  @init
-  {
-  //char *so = NULL;
-  //char *op = NULL;
-  char qitem02[1024+1];//CPPParser_MaxQualifiedItemSize+1];
-  qitem02[0] = '\0';
-  }
+// (including Operator).
+// It might be a good idea to put T::~dtor in here
+// as well, but id_expression in expr.g puts it in manually.
+// Maybe not, 'cause many people use this assuming only A::B.
+// How about a 'qualified_complex_id'?
+qualified_id returns [String name]
+@init {
+    StringBuilder sb = new StringBuilder();
+}
+@after {
+    $name = sb.toString();
+}
   :  
-    so =  scope_override
-    { 
-    if ( (char*)$so.text->chars ) { strcpy(qitem02, (char*)$so.text->chars); }
-    } 
-    (  id=ID {strcat(qitem02,(char*)($id.text->chars)); /*printf("\%s \n", (char*)$id.text->chars);*/ }
-      ((LessThan template_argument_list GreaterThan)=>
-        LessThan template_argument_list GreaterThan)? // {strcat(qitem02,"<...>");}
+    scope_override    {sb.append($scope_override.val);}
+    ( 
+      ID              {sb.append($ID.text);}
+      ((LessThan template_argument_list GreaterThan)=>  LessThan template_argument_list GreaterThan)?
     |  
-      Operator op=optor
-      {strcat(qitem02,"operator"); strcat(qitem02,(char*)$op.text->chars);}
+      Operator optor  {sb.append($Operator.text); sb.append($optor.text);}
     |
       Tilde id_expression    // 1/08/07
     )
-    {
-     $qid = qitem02;
-    }
   ;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1048,207 +843,129 @@ qualified_id returns [char* qid]
 //////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-//typeID
 typeID
-  :  
-    {isTypeName((char*)LT(1)->getText(LT(1))->chars)}?
-    ID
+  : {_p.isTypeName($text)}? ID
   ;
 
-//init_declarator_list
 init_declarator_list
-  :  
-    member_declarator (Comma member_declarator)*
+  : member_declarator (Comma member_declarator)*
   ;
 
-//member_declarator
 member_declarator
-  :  
-    ((ID)? Colon constant_expression)=>(ID)? Colon constant_expression
-  |  
-    declarator
-    (
-      (Assign OCTALInt SemiColon)=> Assign OCTALInt  // The value must be zero (for pure virtual)
-    |  
-      Assign 
-      initializer
-    |  
-      LParen expression_list RParen // member function / method declaration
+  : ((ID)? Colon constant_expression)=>(ID)? Colon constant_expression
+  | declarator
+    ( (Assign OctalLiteral SemiColon)=> Assign OctalLiteral  // The value must be zero (for pure virtual)
+    | Assign initializer
+    | LParen expression_list RParen // member function / method declaration
     )?
   ;
 
-//initializer
 initializer
-  :  
-    remainder_expression  // assignment_expression
-  |  
-    LCurly initializer (Comma (initializer)? )* RCurly  // Allows comma at end of list
+  : remainder_expression  // assignment_expression
+  | LCurly initializer (Comma (initializer)? )* RCurly  // Allows comma at end of list
   ;
 
-//declarator
 declarator
-  :
-    (ptr_operator)=> ptr_operator  // Ampersand or Star etc.
-    declarator
-  |  
-    direct_declarator
+  : (ptr_operator)=> ptr_operator declarator // Ampersand or Star etc.
+  | direct_declarator
   ;
 
-//direct_declarator
 direct_declarator
-  //{
-  //char *id;
-  //CPPParser::TypeQualifier tq;
-  //}
   :  
     (qualified_id LParen (RParen|declaration_specifiers) )=>  // Must be function declaration
-    id = qualified_id
-    {if (_td==True)       // This statement is a typedef   
-      declaratorID($id.text->chars,qiType);
-     else
-      declaratorID($id.text->chars,qiFun);
-    }
-    LParen {declaratorParameterList(0);}
-    (parameter_list)?
-    RParen {declaratorEndParameterList(0);}
-    (tq = type_qualifier)*
-    (exception_specification)?
+	  qualified_id  
+	  {
+	    _p.declaratorID($qualified_id.name, _p.typeDef ? QualifiedItem.Type : QualifiedItem.Fun);
+	  }
+	  LParen {_p.declaratorParameterList();}
+	  parameter_list?
+	  RParen {_p.declaratorEndParameterList(false);}
+	  type_qualifier*
+	  exception_specification?
   |  
     (qualified_id LParen qualified_id)=>  // Must be class instantiation
-    id = qualified_id
-    {//printf("01\n");
-    declaratorID($id.text->chars,qiVar);}
-    LParen
-    expression_list
-    RParen
+    qualified_id
+    {
+      _p.declaratorID($qualified_id.name, QualifiedItem.Var);
+    }
+    LParen expression_list RParen
   |
     (qualified_id LSquare)=>  // Must be array declaration
-    id = qualified_id
-    {//printf("02\n");
-    if (_td==True)       // This statement is a typedef   
-      declaratorID($id.text->chars,qiType);  // This statement is a typedef
-     else 
-      declaratorID($id.text->chars,qiVar);
-     is_address = False; is_pointer = False;
+    qualified_id
+    {
+      _p.declaratorID($qualified_id.name, _p.typeDef ? QualifiedItem.Type : QualifiedItem.Var);
+      _p.isAddress = false; 
+      _p.isPointer = false;
     }
-    (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-     LSquare (constant_expression)? RSquare)+
-    {declaratorArray();}
+    (LSquare (constant_expression)? RSquare)+ {_p.declaratorArray();}
   |
     (qualified_id RParen LParen)=>  // Must be function declaration (see function_direct_declarator)
-    id = qualified_id
+    qualified_id
     {
-    if (_td==True)       // This statement is a typedef   
-      declaratorID($id.text->chars,qiType);  // This statement is a typedef
-     else
-      declaratorID($id.text->chars,qiFun);
-     is_address = False; is_pointer = False;
+      _p.declaratorID($qualified_id.name, _p.typeDef ? QualifiedItem.Type : QualifiedItem.Fun);
+      _p.isAddress = false; 
+      _p.isPointer = false;
     }
   |
-    id = qualified_id
-    {//printf("03\n");
-    if (_td==True)
-      {
-      declaratorID($id.text->chars,qiType);  // This statement is a typedef
-      }
-     else
-      declaratorID($id.text->chars,qiVar);
-     is_address = False; is_pointer = False;
+    qualified_id
+    {
+      _p.declaratorID($qualified_id.name, _p.typeDef ? QualifiedItem.Type : QualifiedItem.Var);
+      _p.isAddress = false; 
+      _p.isPointer = false;
     }
   |  
     LParen declarator RParen 
-    (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-     declarator_suffix)? // DW 1/9/04 declarator_suffix made optional as failed on line 2956 in metrics.i
+    declarator_suffix? // DW 1/9/04 declarator_suffix made optional as failed on line 2956 in metrics.i
   ;          // According to the grammar a declarator_suffix is not required here
 
-//declarator_suffix
 declarator_suffix    // Note: Only used above in direct_declarator
-  //{CPPParser::TypeQualifier tq;}  
   :
-  (  
-    //(options {warnWhenFollowAmbig = false;}:
     (LSquare (constant_expression)? RSquare)+
-    {declaratorArray();}
+    {_p.declaratorArray();}
   |  
-    {(!((LA(1)==LParen)&&(LA(2)==ID))||(qualifiedItemIsOneOf(qiType|qiCtor,1)))}?
-    LParen {declaratorParameterList(0);}
-    (parameter_list)?
-        RParen {declaratorEndParameterList(0);}
-    (tq = type_qualifier)*
-    (exception_specification)?
-  )
+    {  input.LA(1) != LParen 
+    || input.LA(2) != ID
+    || _p.itemIs(QualifiedItem.Type|QualifiedItem.Ctor, 1) 
+    }?
+    LParen {_p.declaratorParameterList();}
+    parameter_list?
+    RParen {_p.declaratorEndParameterList(false);}
+    type_qualifier*
+    exception_specification?
   ;
 
 
-
-  //{CPPParser::TypeQualifier tq;}
-  //conversion_function_decl_or_def
 conversion_function_decl_or_def
-  :
-    Operator declaration_specifiers (Star | Ampersand)?  // DW 01/08/03 Use type_specifier here? see syntax
+  : Operator declaration_specifiers (Star | Ampersand)?  // DW 01/08/03 Use type_specifier here? see syntax
     ( LessThan template_parameter_list GreaterThan /*{wasInTemplate=False;}*/ )?
-    LParen (parameter_list)? RParen
-    (tq = type_qualifier)*  // DW 29/07/05 ? changed to *
-    (exception_specification)?
-    (  compound_statement
-    |  SemiColon {end_of_stmt();}
-    )
+    LParen parameter_list? RParen
+    type_qualifier*  // DW 29/07/05 ? changed to *
+    exception_specification?
+    (compound_statement | SemiColon)
   ;
 
- //function_declarator
-function_declarator [int definition]
-  :  
-    (ptr_operator)=> ptr_operator function_declarator[definition]
-  |  
-    function_direct_declarator[definition]
+function_declarator [boolean definition]
+  : (ptr_operator)=> ptr_operator function_declarator[$definition]
+  | function_direct_declarator[$definition]
   ;
 
-//function_direct_declarator
-function_direct_declarator [int definition] 
-  //{
-  //char *q;
-  //CPPParser::TypeQualifier tq;
-  //}
+function_direct_declarator [boolean definition] 
   :
     (  // fix prompted by (isdigit)() in xlocnum
-      LParen 
-      declarator
-      RParen
-    |
-      q = qualified_id
-      {
-      declaratorID($q.text->chars,qiFun);
-      }
+      LParen declarator RParen
+    | 
+      qualified_id  {_p.declaratorID($qualified_id.name, QualifiedItem.Fun);}
     )
 
-    {    
-    #ifdef MYCODE
-    if (definition)
-      myCode_function_direct_declarator(q);
-    #endif MYCODE
-    }
-
     LParen 
-    {
-    functionParameterList();
-    if (K_and_R == True)
-      in_parameter_list = False;
-    else
-      in_parameter_list = True;
-    }
-    (parameter_list)? 
-    {
-    if (K_and_R == True)
-        in_parameter_list = True;
-    else
-      in_parameter_list = False;
-    }
+    {_p.inParameterList = !_p.KandR; _p.functionParameterList();}
+    parameter_list? 
+    {_p.inParameterList = _p.KandR;}
     RParen
-    (//{dummyVar}? //added by V3-Author //options{warnWhenFollowAmbig = false;}:
-     tq = type_qualifier)*
-    (Assign OCTALInt)?  // The value of the octal must be 0
-    {functionEndParameterList(definition);}
-    (exception_specification)?
+    type_qualifier*
+    (Assign OctalLiteral)?  // The value of the octal must be 0
+    {_p.functionEndParameterList($definition);}
+    exception_specification?
   ;
 
 
@@ -1260,129 +977,84 @@ function_direct_declarator [int definition]
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 
-//ctor_definition
 ctor_definition 
-  :
-    ctor_head
-    ctor_body
-    {endConstructorDefinition();}
+  : ctor_head ctor_body {_p.endConstructorDefinition();}
   ;
 
-//ctor_head
 ctor_head 
-  :
-    ctor_decl_spec
-    ctor_declarator[1]
+  : ctor_decl_spec ctor_declarator[true]
   ;
 
-//ctor_decl_spec
 ctor_decl_spec
-  :
-    (Inline|Explicit)*
+  : (Inline|Explicit)*
   ;
 
-//ctor_declarator
-ctor_declarator[int definition]
-  : 
-    q = qualified_ctor_id
-    {declaratorParameterList(definition);}
-    LParen (parameter_list)? RParen
-    {declaratorEndParameterList(definition);}
-    (exception_specification)?
+ctor_declarator[boolean definition]
+  : qualified_ctor_id
+    {_p.declaratorParameterList();}
+    LParen parameter_list? RParen
+    {_p.declaratorEndParameterList($definition);}
+    exception_specification?
   ;
 
 
 // This matches a generic qualified identifier ::T::B::foo
 // that is satisfactory for a ctor (no operator, no trailing <>)
-qualified_ctor_id returns [char* q]
-  @init
-  {
-  char qitem03[1024+1];//CPPParser_MaxQualifiedItemSize+1];
-  qitem03[0] = '\0';
-  q = NULL;
-  }
-  : 
-    so = scope_override
-    {strcpy(qitem03, (char*)$so.text->chars);}
-    id=ID  // DW 24/05/04 Note. Neither Ctor or Dtor recorded in dictionary
-    {strcat(qitem03, (char*)($id.text->chars));
-    $q = qitem03;
-    //printf("CPP_parser.g qualified_ctor_id q \%s\n",q);
-    } 
+qualified_ctor_id returns [String name]
+  : scope_override ID // DW 24/05/04 Note. Neither Ctor or Dtor recorded in dictionary
+    {$name = $scope_override.val + $ID.text;} 
+    //System.out.printf("CPP_parser.g qualified_ctor_id q \\%s",q);
   ;
 
-//ctor_body
 ctor_body
-  :
-    (ctor_initializer)?
-    compound_statement
+  : ctor_initializer? compound_statement
   ;
 
-//ctor_initializer
 ctor_initializer
-  :
-    Colon superclass_init (Comma superclass_init)*
+  : Colon superclass_init (Comma superclass_init)*
   ;
 
-//superclass_init
 superclass_init
-  //{char *q;} 
-  : 
-    q = qualified_id LParen (expression_list)? RParen
+  : qualified_id LParen expression_list? RParen
   ;
 
-//dtor_head
-dtor_head[int definition]
-  :
-    dtor_decl_spec
-    dtor_declarator[definition]
+dtor_head[boolean definition]
+  : dtor_decl_spec dtor_declarator[$definition]
   ;
 
-//dtor_decl_spec
 dtor_decl_spec
-  :
-    (Inline|Virtual)*
+  : (Inline|Virtual)*
   ;
 
-//dtor_declarator
-dtor_declarator[int definition]
-  //{char *s;}
-  :  
-    s = scope_override
+dtor_declarator[boolean definition]
+  : scope_override
     Tilde ID
-    {declaratorParameterList(definition);}
-    LParen (Void)? RParen
-    {declaratorEndParameterList(definition);}
-    (exception_specification)?
+    {_p.declaratorParameterList();}
+    LParen Void? RParen
+    {_p.declaratorEndParameterList($definition);}
+    exception_specification?
   ;
 
-//dtor_body
 dtor_body
-  :
-    compound_statement
-    {endDestructorDefinition();}
+  : compound_statement {_p.endDestructorDefinition();}
   ;
 
-//parameter_list
 parameter_list
-  :  
-    parameter_declaration_list (Ellipsis)?
+  : parameter_declaration_list Ellipsis?
   ;
 
-//parameter_declaration_list
 parameter_declaration_list
-  :  
-    (parameter_declaration (Comma parameter_declaration)* )
+  : parameter_declaration (Comma parameter_declaration)*
   ;
 
-//parameter_declaration  (See also template_parameter_declaration) 
+//See also template_parameter_declaration 
 parameter_declaration
   :  
-    {beginParameterDeclaration();}
+    {_p.beginParameterDeclaration();}
     (
-      {!((LA(1)==Scope) && (LA(2)==Star||LA(2)==Operator)) &&
-       (!(LA(1)==Scope||LA(1)==ID) || qualifiedItemIsOneOf(qiType|qiCtor,0) )}?
-      
+      { !(input.LA(1) == Scope && (input.LA(2) == Star || input.LA(2) == Operator))
+      && (input.LA(1) != Scope && input.LA(1) != ID || _p.itemIs(QualifiedItem.Type|QualifiedItem.Ctor) )
+      }?
       declaration_specifiers  // DW 24/3/98 Mods for K & R
       (  
         (declarator)=> declarator        // if arg name given
@@ -1390,19 +1062,15 @@ parameter_declaration
         abstract_declarator     // if arg name not given  // can be empty
       )
     |
-          (declarator)=> declarator      // DW 24/3/98 Mods for K & R
+      (declarator)=> declarator      // DW 24/3/98 Mods for K & R
     |
       Ellipsis
     )
-    (Assign 
-     remainder_expression // DW 18/4/01 assignment_expression
-    )?
+    (Assign remainder_expression)? // DW 18/4/01 assignment_expression
   ;
 
-//type_id
 type_id
-  :
-    declaration_specifiers abstract_declarator
+  : declaration_specifiers abstract_declarator
   ;
 
 // This rule looks a bit weird because (...) can happen in two
@@ -1413,61 +1081,41 @@ type_id
 // valid () func-groups:
 //    int (*)();     // ptr to func
 //    int (*[])();   // array of ptr to func
- //
-//abstract_declarator
 abstract_declarator
-  :  
-    ptr_operator abstract_declarator 
-  |  
-    (LParen abstract_declarator RParen (LSquare|LParen) )=> LParen abstract_declarator RParen
-    (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-    abstract_declarator_suffix)
-  |  
-    (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-    abstract_declarator_suffix)?
+  : ptr_operator abstract_declarator 
+  | (LParen abstract_declarator RParen (LSquare|LParen) )=> 
+     LParen abstract_declarator RParen abstract_declarator_suffix
+  | abstract_declarator_suffix?
   ;
 
-//abstract_declarator_suffix
 abstract_declarator_suffix
-  :  
-    (LSquare (constant_expression)? RSquare)+
-    {declaratorArray();}
-  |
-    LParen
-    {declaratorParameterList(0);}
-    (parameter_list)?
+  : (LSquare (constant_expression)? RSquare)+ {_p.declaratorArray();}
+  | LParen
+    {_p.declaratorParameterList();}
+    parameter_list?
     RParen
-    {declaratorEndParameterList(0);}
+    {_p.declaratorEndParameterList(false);}
     cv_qualifier_seq
-    (exception_specification)?
+    exception_specification?
   ;
 
-//exception_specification
 exception_specification
-  //{char *so;}
-  :  
-    Throw
+  : Throw 
     LParen 
-    (  (so = scope_override ID (Comma so = scope_override ID)* )? 
+    (  (scope_override ID (Comma scope_override ID)* )? 
     |  Ellipsis
     )
     RParen
   ;
 
-//template_head
 template_head
-  :  
-    Template
-    LessThan template_parameter_list GreaterThan
+  : Template LessThan template_parameter_list GreaterThan
   ;
 
-//template_parameter_list
 template_parameter_list
-  :  
-    { //wasInTemplate=True;
-    beginTemplateParameterList();}
+  : {_p.beginTemplateParameterList();}
     template_parameter (Comma template_parameter)*
-    {endTemplateParameterList();}
+    {_p.endTemplateParameterList();}
   ;
 
 // Rule requires >2 lookahead tokens. The ambiguity is resolved 
@@ -1477,65 +1125,33 @@ template_parameter_list
 // already existing class) is taken as type-argument."
 // Therefore, any "class ID" that is seen on the input, should
 // match the first alternative here (it should be a type-argument).
- //
-//template_parameter
 template_parameter
-  :  
-    (//{dummyVar}? //added by V3-Author //options{generateAmbigWarnings = false;}:
-     type_parameter
-    |
-     (parameter_declaration)=>
-      parameter_declaration
-    |
-     template_parameter_declaration
-    )
+  : type_parameter
+  | (parameter_declaration)=> parameter_declaration
+  | template_parameter_declaration
   ;
 
-//type_parameter
 type_parameter
-  :
-    (  
-      (Class|TypeName) 
-      (id=ID
-        {
-        templateTypeParameter((char*)$id.text->chars);
-        }
-        (Assign assigned_type_name)?
-      )?
-    |
-      template_head Class
-      (id2=ID
-        {
-        templateTypeParameter((char*)$id2.text->chars);
-        }
-        (Assign assigned_type_name)?
-      )?
-    )
+  : (Class|TypeName) (id=ID {_p.templateTypeParameter($id.text);} (Assign assigned_type_name)? )?
+  | template_head Class (id2=ID {_p.templateTypeParameter($id2.text);} (Assign assigned_type_name)? )?
   ;
 
 // This is to allow an assigned type_name in a template parameter
-//  list to be defined previously in the same parameter list,
-//  as type setting is ineffective whilst guessing
- //
-//assigned_type_name
+// list to be defined previously in the same parameter list,
+// as type setting is ineffective whilst guessing
 assigned_type_name
-  //{char* qt; TypeSpecifier ts;}
-  :
-    (//{dummyVar}? //added by V3-Author //options{generateAmbigWarnings = false;}:
-      qt = qualified_type abstract_declarator  
-    |
-      ts = simple_type_specifier abstract_declarator
-    )
+  : qualified_type abstract_declarator  
+  | type_specifier abstract_declarator
   ;
 
-//template_parameter_declaration  (See also parameter_declaration)
+//See also parameter_declaration
 template_parameter_declaration
   :  
-    {beginParameterDeclaration();}
+    {_p.beginParameterDeclaration();}
     (
-      {!((LA(1)==Scope) && (LA(2)==Star||LA(2)==Operator)) &&
-       (!(LA(1)==Scope||LA(1)==ID) || qualifiedItemIsOneOf(qiType|qiCtor,0) )}?
-      
+      { !(input.LA(1) == Scope && (input.LA(2) == Star || input.LA(2) == Operator))
+      && (input.LA(1) != Scope && input.LA(1) != ID || _p.itemIs(QualifiedItem.Type|QualifiedItem.Ctor) )
+      }?
       declaration_specifiers  // DW 24/3/98 Mods for K & R
       (  
         (declarator)=> declarator        // if arg name given
@@ -1553,30 +1169,26 @@ template_parameter_declaration
   ;
 
 // This rule refers to an instance of a template class or function
-//template_id
 template_id  // aka template_class_name
-  :  
-    ID LessThan template_argument_list GreaterThan
+  : ID LessThan template_argument_list GreaterThan
   ;
 
-//template_argument_list
 template_argument_list
-  :  
-    template_argument (Comma template_argument)*
+  : template_argument (Comma template_argument)*
   ;
 
 // Here assignment_expression was changed to shift_expression to rule out
 //  x< 1<2 > which causes ambiguities. As a result, these can be used only
 //  by enclosing parentheses x<(1<2)>. This is true for x<1+2> ==> bad,
 //  x<(1+2)> ==> ok.
- //
-//template_argument
 template_argument
   :
     // DW 07/04/05 This predicate only used here if next is Scope or ID
-    {( !(LA(1)==Scope||LA(1)==ID) || qualifiedItemIsOneOf(qiType|qiCtor,0) )}?
+    {  input.LA(1) != Scope && input.LA(1) != ID 
+    || _p.itemIs(QualifiedItem.Type|QualifiedItem.Ctor)
+    }?
     type_id
-  |  
+  |
     shift_expression // failed in iosfwd
   ;
 
@@ -1588,210 +1200,161 @@ template_argument
 ///////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////
 
-//statement_list
 statement_list
-  :  
-    (statement)+
+  : statement+
   ;
 
-//statement
 statement
-  @init
-  {
-  lineNo = 0;
-  lineNo = LT(1)->line;
-  //FunctionSpecifier fs = fsInvalid;  // inline,virtual,explicit
-  }
-  // all {dummyVar}? are added by V3-Author
-  :
-    (  (Namespace|USING)=>
-      block_declaration
-    |  ((TypeDef)? class_specifier (qualified_id)? LCurly)=>
-       member_declaration
-    |  (declaration_specifiers        ((ptr_operator)=>ptr_operator)? qualified_id)=> //HERE//
-       member_declaration
-    |   (labeled_statement)=> 
-       labeled_statement
-    |   case_statement
-    |   default_statement
-    |   expression SemiColon {end_of_stmt();}
-    |   compound_statement
-    |   selection_statement
-    |   iteration_statement
-    |   jump_statement
-    |   SemiColon {end_of_stmt();}
-    |   try_block
-    |   throw_statement
-      // The next two entries may be used for debugging
-      // Use this statement in the source code to turn antlr trace on (See note above)
-    |  'antlrTrace_on' {antlrTrace(True);}
-      // Use this statement in the source code to turn antlr trace off (See note above)
-    |  'antlrTrace_off' {antlrTrace(False);}
-    )
-  
+@init {
+    _p.lineNo = input.LT(1).getLine();
+}
+  : (Namespace|Using)=> block_declaration
+  | (TypeDef? class_specifier qualified_id? LCurly)=> member_declaration
+  | (declaration_specifiers ((ptr_operator)=>ptr_operator)? qualified_id)=> member_declaration
+  | (labeled_statement)=> labeled_statement
+  | case_statement
+  | default_statement
+  | expression SemiColon
+  | compound_statement
+  | selection_statement
+  | iteration_statement
+  | jump_statement
+  | SemiColon
+  | try_block
+  | throw_statement
   ;
+/**
+    // The next two entries may be used for debugging
+    // Use this statement in the source code to turn antlr trace on (See note above)
+  |  'antlrTrace_on' {antlrTrace(True);}
+    // Use this statement in the source code to turn antlr trace off (See note above)
+  |  'antlrTrace_off' {antlrTrace(False);}
+  ;
+***/
 
-//block_declaration
 block_declaration
-  :  simple_declaration
-  |  namespace_alias_definition
-  |  using_statement
+  : simple_declaration
+  | namespace_alias_definition
+  | using_statement
   ;
 
-//simple_declaration
 simple_declaration
-  :
-    declaration_specifiers (init_declarator_list)? SemiColon {end_of_stmt();}
+  : declaration_specifiers init_declarator_list? SemiColon
   ;
 
-//labeled_statement
 labeled_statement
-  :  
-    ID Colon statement
+  : ID Colon statement
   ;
 
-//case_statement
 case_statement
-  :  Case
-    constant_expression Colon statement
+  : Case constant_expression Colon statement
   ;
 
-//default_statement
 default_statement
-  :  
-    Default Colon statement
+  : Default Colon statement
   ;
 
-//compound_statement
 compound_statement
-  :  
-    LCurly 
-    {end_of_stmt();
-     enterNewLocalScope();
-    }
-    (statement_list)?
+  : LCurly 
+    {_p.enterNewLocalScope();}
+    statement_list?
     RCurly 
-    {exitLocalScope();}
+    {_p.exitLocalScope();}
   ;
 
 // NOTE: cannot remove Else ambiguity, but it parses correctly.
 // The warning is removed with the options statement
-///
-//selection_statement
 selection_statement
-  :  
-    If LParen 
-    {enterNewLocalScope();}
-    condition RParen
-    st1 = statement
-    (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-     Else st2 = statement)?
-    {exitLocalScope();}
+  : If LParen 
+    {_p.enterNewLocalScope();}
+    condition RParen statement (Else statement)?
+    {_p.exitLocalScope();}
   |  
     Switch LParen
-    {enterNewLocalScope();}
+    {_p.enterNewLocalScope();}
     condition RParen statement
-    {exitLocalScope();}
+    {_p.exitLocalScope();}
   ;
 
-//iteration_statement
 iteration_statement
   :  
     While  LParen
-    {enterNewLocalScope();}
-    condition RParen 
-    statement  
-    {exitLocalScope();}
+    {_p.enterNewLocalScope();}
+    condition RParen statement  
+    {_p.exitLocalScope();}
   |  
     Do 
-    {enterNewLocalScope();}
+    {_p.enterNewLocalScope();}
     statement While
     LParen expression RParen 
-    {exitLocalScope();}
-    SemiColon {end_of_stmt();} 
+    {_p.exitLocalScope();}
+    SemiColon 
   |  
     For LParen
-    {enterNewLocalScope();}
+    {_p.enterNewLocalScope();}
     (  (declaration)=> declaration 
-    |  (expression)? SemiColon {end_of_stmt();}
+    |  expression? SemiColon
     )
-    (condition)? SemiColon {end_of_stmt();}
-    (expression)?
+    condition? SemiColon
+    expression?
     RParen statement   
-    {exitLocalScope();}
+    {_p.exitLocalScope();}
   ;
 
-//condition
 condition
-  :
-    (  (declaration_specifiers declarator Assign)=> 
-       declaration_specifiers declarator Assign remainder_expression
-    |  expression
-    )
+  : (declaration_specifiers declarator Assign)=> 
+     declaration_specifiers declarator Assign remainder_expression
+  |  expression
   ;
 
-//jump_statement
 jump_statement
   :  
-    (  Goto ID SemiColon {end_of_stmt();}
-    |  Continue SemiColon {end_of_stmt();}
-    |  Break SemiColon {end_of_stmt();}
-    |  // DW 16/05/03 May be problem here if return is followed by a cast expression 
-      Return {in_return = True;}
-      (  //{dummyVar}? //added by V3-Author //options{warnWhenFollowAmbig = false;}:
-                                             // THE ,0 was added by V3-Author
-        (LParen {(qualifiedItemIsOneOf(qiType,0) )}? ID RParen)=> 
-        LParen ID RParen (expression)?  // This is an unsatisfactory fix for problem in xstring re 'return (allocator);'
-                        //  and in xlocale re return (_E)(_Tolower((unsigned char)_C, &_Ctype));
-        //{printf("\%d CPP_parser.g jump_statement Return fix used\n",lineNo);}
-      |  expression 
-      )?  SemiColon {in_return = False; end_of_stmt();} 
+    (  Goto ID SemiColon
+    |  Continue SemiColon
+    |  Break SemiColon
+    |  Return {_p.inReturn = true;}
+       (
+         // DW 16/05/03 May be problem here if return is followed by a cast expression 
+         // This is an unsatisfactory fix for problem in xstring re 'return (allocator);'
+         //  and in xlocale re return (_E)(_Tolower((unsigned char)_C, &_Ctype));
+         (LParen {_p.itemIs(QualifiedItem.Type)}? ID RParen)=> LParen ID RParen expression?  
+       |  expression 
+       )?  
+       SemiColon {_p.inReturn = false;} 
     )
   ;
 
-//try_block
 try_block
-  :  
-    Try compound_statement (handler)*
+  : Try compound_statement handler*
   ;
 
-//handler
 handler
-  :  
-    Catch
-    {exceptionBeginHandler();}
-    {declaratorParameterList(1);}
+  : Catch
+    {_p.exceptionBeginHandler();}
+    {_p.declaratorParameterList();}
     LParen exception_declaration RParen
-    {declaratorEndParameterList(1);}
+    {_p.declaratorEndParameterList(true);}
     compound_statement
-    {exceptionEndHandler();}
+    {_p.exceptionEndHandler();}
   ;
 
-//exception_declaration
 exception_declaration
-  :  
-    parameter_declaration_list
+  : parameter_declaration_list
   ;
 
 // This is an expression of type void according to the ARM, which
 // to me means "statement"; it removes some ambiguity to put it in
 // as a statement also.
-///
-//throw_statement
 throw_statement
-  :  
-    Throw (assignment_expression) ? SemiColon { end_of_stmt();}
+  : Throw assignment_expression? SemiColon
   ;
 
-//using_statement
 using_statement
-  //{char *qid;}
-  :    
-    USING
-    (Namespace qid = qualified_id    // Using-directive
-    |(TypeName)? qid = qualified_id  // Using-declaration
+  : Using
+    ( Namespace qualified_id    // Using-directive
+    | TypeName? qualified_id  // Using-declaration
     )
-    SemiColon {end_of_stmt();}
+    SemiColon
   ;
 
 
@@ -1802,124 +1365,91 @@ using_statement
 ///////////////////////////////////////////////////////////////////////
 
 // Same as expression_list
-//expression
 expression
-  @init
-  {
-  lineNo = LT(1)->line;
-  }
-  :  
-    assignment_expression (Comma assignment_expression)*
+@init {
+    _p.lineNo = input.LT(1).getLine();
+}
+  : assignment_expression (Comma assignment_expression)*
   ;
 
 // right-to-left for assignment op
-//assignment_expression
 assignment_expression
-  :  
-    conditional_expression
-    (  //options{backtrack=true; k=3;}:
-      (Assign|TimesAssign|DivideAssign|MinusAssign|PlusAssign
-      |ModAssign|ShiftLeftAssign|ShiftRightAssign|BitwiseAndAssign
-      |BitwiseExOrAssign|BitwiseOrAssign
+  : conditional_expression
+    (
+      (Assign
+      |TimesAssign
+      |DivideAssign
+      |MinusAssign
+      |PlusAssign
+      |ModAssign
+      |ShiftLeftAssign
+      |ShiftRightAssign
+      |BitwiseAndAssign
+      |BitwiseExOrAssign
+      |BitwiseOrAssign
       )
       remainder_expression
     )?
   ;
 
-
-//remainder_expression
 remainder_expression
-  :
-    (  
-      (conditional_expression (Comma|SemiColon|RParen) )=>
-      {assign_stmt_RHS_found += 1;}
+  : (conditional_expression (Comma|SemiColon|RParen) )=>
+      {_p.assignStmtRHSFound += 1;}
       assignment_expression
       {
-      if (assign_stmt_RHS_found > 0)
-        assign_stmt_RHS_found -= 1;
+      if (_p.assignStmtRHSFound > 0)
+        _p.assignStmtRHSFound -= 1;
       else
-        {
-        fprintf(stderr,"\%d warning Error in assign_stmt_RHS_found = \%d\n",
-          LT(1)->line,assign_stmt_RHS_found);
-        fprintf(stderr,"Press return to continue\n");
-        getchar();
-        }
+        _debug("warning Error in assignStmtRHSFound = \%s", _p.assignStmtRHSFound);
       }
-    |  
-      assignment_expression
-    )
+  |  
+    assignment_expression
   ;
 
-//conditional_expression
 conditional_expression
-  :  
-    logical_or_expression
-    (QuestionMark expression Colon conditional_expression)?
+  : logical_or_expression (QuestionMark expression Colon conditional_expression)?
   ;
 
-//constant_expression
 constant_expression
-  :  
-    conditional_expression
+  : conditional_expression
   ;
 
-//logical_or_expression
 logical_or_expression
-  :  
-    logical_and_expression (Or logical_and_expression)* 
+  : logical_and_expression (Or logical_and_expression)* 
   ;
 
-//logical_and_expression
 logical_and_expression
-  :  
-    inclusive_or_expression (And inclusive_or_expression)* 
+  : inclusive_or_expression (And inclusive_or_expression)* 
   ;
 
-//inclusive_or_expression
 inclusive_or_expression
-  :  
-    exclusive_or_expression (BitwiseOr exclusive_or_expression)*
+  : exclusive_or_expression (BitwiseOr exclusive_or_expression)*
   ;
 
-//exclusive_or_expression
 exclusive_or_expression
-  :  
-    and_expression (BitwiseExOr and_expression)*
+  : and_expression (BitwiseExOr and_expression)*
   ;
 
-//and_expression
 and_expression
-  :  
-    equality_expression (Ampersand equality_expression)*
+  : equality_expression (Ampersand equality_expression)*
   ;
 
-//equality_expression
 equality_expression
-  :  
-    relational_expression ( (NotEquals|Equals) relational_expression)*
+  : relational_expression ( (NotEquals|Equals) relational_expression)*
   ;
 
-//relational_expression
 relational_expression
-  :  
-    shift_expression
-    (options{backtrack=true;}: //added by V3-Author //options {warnWhenFollowAmbig = false;}:
+  : shift_expression
+    (
+      options{backtrack=true;}: //added by V3-Author //options {warnWhenFollowAmbig = false;}:
       //{!wasInTemplate}?
-      (
-        (  LessThan
-        |  GreaterThan
-        |  LessThanOrEquals
-        |  GreaterThanOrEquals
-        )
-         
-       )shift_expression
+      (LessThan|GreaterThan|LessThanOrEquals|GreaterThanOrEquals)
+      shift_expression
     )?
   ;
 
-//shift_expression
 shift_expression
-  :  
-    additive_expression ((ShiftLeft | ShiftRight) additive_expression)*
+  : additive_expression ((ShiftLeft|ShiftRight) additive_expression)*
   ;
 
 // See comment for multiplicative_expression regarding #pragma
@@ -1939,17 +1469,14 @@ additive_expression
 // as well not bother.  This has the side-benefit that ANTLR doesn't go
 // off to lunch here (take infinite time to read grammar).
 multiplicative_expression
-  :  
-    pm_expression
+  : pm_expression
     (//options{backtrack=true;k=3;}: //added by V3-Author //{dummyVar}? //added by V3-Author //options{warnWhenFollowAmbig = false;}:
       (Star|Divide|Mod) pm_expression
     )*
   ;
 
-//pm_expression
 pm_expression
-  :  
-    cast_expression ( (DotMbr|PointerToMbr) cast_expression)*
+  : cast_expression ( (DotMbr|PointerToMbr) cast_expression)*
   ;
 
 // The string "( ID" can be either the start of a cast or
@@ -1997,8 +1524,12 @@ unary_expression
   | Increment unary_expression
   | Decrement unary_expression
   | unary_operator cast_expression
-  | SizeOf  //Zhaojz 02/02/05 to fix bug 29 (GNU)
-    (  (unary_expression)=> unary_expression | LParen type_id RParen  )
+  | SizeOf 
+    ( 
+      (unary_expression)=> unary_expression 
+    | 
+      LParen type_id RParen  
+    )
   | Scope? (new_expression | delete_expression)
   ;
 
@@ -2006,34 +1537,32 @@ unary_expression
 postfix_expression
   :
     // Function-style cast must have a leading type
-    {!(LA(1)==LParen)}?
-    (ts = simple_type_specifier LParen RParen LParen)=>  // DW 01/08/03 To cope with problem in xtree (see test10.i) 
-      ts =simple_type_specifier LParen RParen LParen (expression_list)? RParen 
+    {input.LA(1) != LParen}?
+    (type_specifier LParen RParen LParen)=>  // DW 01/08/03 To cope with problem in xtree (see test10.i) 
+     type_specifier LParen RParen LParen expression_list? RParen 
   |
-    {!(LA(1)==LParen)}? =>
-    (ts = simple_type_specifier LParen)=>
-     ts = simple_type_specifier LParen (expression_list)? RParen 
-    // Following put in to allow for the above being a constructor as shown in test_constructors_destructors.cpp
+    {input.LA(1) != LParen}? =>
+    (type_specifier LParen)=>
+     type_specifier LParen expression_list? RParen 
+    // Following put in to allow for the above being a constructor 
+    // as shown in test_constructors_destructors.cpp
     (Dot postfix_expression)?
-  |  
+  |
     primary_expression
-    (//options{backtrack=true;}: //added by V3-Author //{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-          (LSquare expression RSquare
-       |  LParen (expression_list)? RParen // function call/function-call or method call/method-call.
-       |  (Dot|PointerTo) (Template)? id_expression
-       |  Increment 
-       |  Decrement
-      )*
-    )
+    (  LSquare expression RSquare
+    |  LParen expression_list? RParen // function call/function-call or method call/method-call.
+    |  (Dot|PointerTo) Template? id_expression
+    |  Increment 
+    |  Decrement
+    )*
   |
     Cast
-    LessThan (Const)? ts = type_specifier (ptr_operator)? GreaterThan
+    LessThan Const? type_specifier ptr_operator? GreaterThan
     LParen expression RParen
   |
     TypeID 
     LParen ((type_id)=>type_id|expression) RParen
     ( (Dot|PointerTo) postfix_expression)?
-  
   ;
 
 primary_expression
@@ -2050,12 +1579,12 @@ id_expression
 literal
   : True
   | False
-  | HEX_LITERAL
-  | OCTAL_LITERAL
-  | DECIMAL_LITERAL
-  | CHARACTER_LITERAL
-  | FLOATING_POINT_LITERAL
-  | STRING_LITERAL+
+  | HexLiteral
+  | OctalLiteral
+  | DecimalLiteral
+  | CharacterLiteral
+  | FloatingPointLiteral
+  | StringLiteral+
   ;
 
 unary_operator
@@ -2077,13 +1606,17 @@ unary_operator
 // some rules might handle this.]
 new_expression
   : New
-    (  (LParen expression_list RParen)=>     LParen expression_list RParen )?
-    (  (LParen type_id RParen)=>             LParen type_id RParen  | new_type_id )
+    ( (LParen expression_list RParen)=>     LParen expression_list RParen )?
+    ( 
+      (LParen type_id RParen)=>   LParen type_id RParen  
+    | 
+      new_type_id 
+    )
     ( (new_initializer)=>                   new_initializer )?
   ;
 
 new_initializer
-  :  LParen (expression_list)? RParen
+  :  LParen expression_list? RParen
   ;
 
 new_type_id
@@ -2109,138 +1642,120 @@ direct_new_declarator
 
 
 ptr_operator 
-  : Ampersand   {is_address = True;} 
-  |  ('_cdecl'|'__cdecl') 
-  |   ('_near'|'__near') 
-  |   ('_far'|'__far') 
-  |   '__interrupt' 
-  |   ('pascal'|'_pascal'|'__pascal') 
-  |   ('_stdcall'|'__stdcall') 
-  |   (s = scope_override Star cv_qualifier_seq)=>  s = scope_override Star {is_pointer = True;} cv_qualifier_seq
+  : Ampersand   {_p.isAddress = true;} 
+  | ('_cdecl'|'__cdecl') 
+  | ('_near'|'__near') 
+  | ('_far'|'__far') 
+  | '__interrupt' 
+  | ('pascal'|'_pascal'|'__pascal') 
+  | ('_stdcall'|'__stdcall') 
+  | (scope_override Star cv_qualifier_seq)=>  scope_override Star {_p.isPointer = true;} cv_qualifier_seq
   ;
    
   
 
 // Match A::B::*  // May be redundant 14/06/06
-//ptr_to_member
 ptr_to_member  // Part of ptr_operator in grammar.txt
-  //{char *s;}
-  :
-    s = scope_override Star  {is_pointer = True;} cv_qualifier_seq
+  : scope_override Star  {_p.isPointer = true;} cv_qualifier_seq
   ;
 
 // JEL note:  does not use (const|volatile)* to avoid lookahead problems
-//cv_qualifier_seq
 cv_qualifier_seq
-  //{CPPParser::TypeQualifier tq;}
-  :
-    (tq = type_qualifier)*
+  : type_qualifier*
   ;
 
 
 // Match "(::)A::B::C::(template)" or just "::"
-//scope_override
-scope_override returns [char *so]
-  @init 
-  {
-  char sitem[1024+1];//CPPParser_MaxQualifiedItemSize+1];
-  // The above statement must be non static because its calling is nested
-  sitem[0] = '\0';
-  //so = NULL;
-  }
+scope_override returns [String val]
+@init {
+    StringBuilder sb = new StringBuilder();
+}
+@after {
+    $val = sb.toString();
+}
   :
-    (Scope {strcat(sitem,"::");} )?
-    (  //{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-      //{dummyVar2}? //added by V3-Author 
+    (Scope {sb.append("::");} )?
+    (
       (ID LessThan template_argument_list GreaterThan Scope)=>
-      id1=ID {strcat(sitem,(char*)($id1.text->chars));}
-      LessThan template_argument_list GreaterThan // {strcat(sitem,"<...>");}
-      Scope{strcat(sitem,"::");}
-      (Template {strcat(sitem,"template");})?
-      
+	      id1=ID {sb.append($id1.text);}
+	      LessThan template_argument_list GreaterThan
+	      Scope {sb.append("::");}
+	      (Template {sb.append("template");})?
     |  
       (ID Scope)=> // added by V3-Author
-      //{dummyVar}? //added by V3-Author 
-      id2=ID {strcat(sitem,(char*)($id2.text->chars));}
-      Scope {strcat(sitem,"::");}
-      (Template {strcat(sitem,"template");})?
-      
+	      id2=ID {sb.append($id2.text);}
+	      Scope {sb.append("::");}
+	      (Template {sb.append("template");})?
     )*
-    {
-     $so = sitem;
-    }
   ;
 
 
 
-//delete_expression
 delete_expression
-  :  
-    Class (LSquare RSquare)? cast_expression
+  : Class (LSquare RSquare)? cast_expression
   ;
 
 // Same as expression
-//expression_list
 expression_list
-  :  
-    assignment_expression (Comma assignment_expression)*
+  : assignment_expression (Comma assignment_expression)*
   ;
 
-//optor
-optor returns [char* s]
-  @init 
-  {
-  char sitem[1024+1];//CPPParser_MaxQualifiedItemSize+1];
-  //TypeSpecifier ts=tsInvalid;
-  char *opitem;
-  
-  sitem[0]='\0';
-  //s=NULL;
-  }
-  :  // NOTE: you may need to add backtracking depending on the C++ standard specifications used...
-    // but for now V3-Author has decided not to add that and go for the default alternative 1 selected
-    // during antlr code generation...
-    (  New {strcat(sitem," new");}
-      (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-        LSquare RSquare  {strcat(sitem,"[]");} )?
-    |   
-      Delete {strcat(sitem," delete");}
-      (//{dummyVar}? //added by V3-Author //options {warnWhenFollowAmbig = false;}:
-        LSquare RSquare  {strcat(sitem,"[]");} )?
-    |  
-      LParen RParen  {strcat(sitem,"()");}
-    |  
-      LSquare RSquare  {strcat(sitem,"[]");}
-    |
-      {strcat(sitem,(char*)(LT(1)->getText(LT(1)))->chars);}
-      optor_simple_tokclass
-    |
-      {strcat(sitem,"type-specifier()");}
-      ts = type_specifier LParen RParen
-    )
-    {
-    $s = sitem;
-    }
+// NOTE: you may need to add backtracking depending on the C++ standard specifications used...
+// but for now V3-Author has decided not to add that and go for the default alternative 1 selected
+// during antlr code generation...
+optor returns [String val]
+  : New                          {$val = " new";} 
+             ( LSquare RSquare   {$val += "[]";} )?
+  | Delete                       {$val = " delete";} 
+             ( LSquare RSquare   {$val += "[]";} )?
+  | LParen RParen                {$val = "()";}
+  | LSquare RSquare              {$val = "[]";}
+  | optor_simple_tokclass        {$val = $optor_simple_tokclass.text;}
+  | type_specifier LParen RParen {$val = "type-specifier()";}
   ;
 
 
-// optor_simple_tokclass
 optor_simple_tokclass
-  :
-  //options{backtrack=true;}:
-       Plus|Minus|Star|Divide|Mod|BitwiseExOr|Ampersand|BitwiseOr|Tilde|Not|
-   ShiftLeft|ShiftRight|
-   Assign|TimesAssign|DivideAssign|ModAssign|PlusAssign|MinusAssign|
-   ShiftLeftAssign|ShiftRightAssign|BitwiseAndAssign|BitwiseExOrAssign|BitwiseOrAssign|
-   Equals|NotEquals|LessThan|GreaterThan|LessThanOrEquals|GreaterThanOrEquals|Or|And|
-   Increment|Decrement|Comma|PointerTo|PointerToMbr
-  
-  
+  : Plus
+  | Minus
+  | Star
+  | Divide
+  | Mod
+  | BitwiseExOr
+  | Ampersand
+  | BitwiseOr
+  | Tilde
+  | Not
+  | ShiftLeft
+  | ShiftRight
+  | Assign
+  | TimesAssign
+  | DivideAssign
+  | ModAssign
+  | PlusAssign
+  | MinusAssign
+  | ShiftLeftAssign
+  | ShiftRightAssign
+  | BitwiseAndAssign
+  | BitwiseExOrAssign
+  | BitwiseOrAssign
+  | Equals
+  | NotEquals
+  | LessThan
+  | GreaterThan
+  | LessThanOrEquals
+  | GreaterThanOrEquals
+  | Or
+  | And
+  | Increment
+  | Decrement
+  | Comma
+  | PointerTo
+  | PointerToMbr
   ;
 
 
 /////////////////////////////////////////////////////////////
-
 
 // Operators:
 
@@ -2326,6 +1841,7 @@ Else               : 'else'            ;
 Enum               : 'enum'            ;
 Extern             : 'extern'          ;
 Explicit           : 'explicit'        ;
+Extension          : '__extension__' {$channel=HIDDEN;}; // GNU specific
 False              : 'false'           ;
 Float              : 'float'           ;
 For                : 'for'             ;
@@ -2361,6 +1877,7 @@ TypeID             : 'typeid'          ;
 TypeName           : 'typename'        ;
 Union              : 'union'           ;
 Unsigned           : 'unsigned'        ;
+Using              : 'using'           ;
 Virtual            : 'virtual'         ;
 Void               : 'void'            ;
 Volatile           : 'volatile'        ;
@@ -2368,43 +1885,51 @@ WChar_T            : 'wchar_t'         ;
 While              : 'while'           ;
 /////////
 
-ASM                : 'asm'|'__asm__'|'__asm';
-EXTENSION          : '__extension__' {$channel=HIDDEN;}; // GNU specific
-ATTRIBUTE          : '__attribute__'   ; // GNU specific
-
-
-/////////
-
 // complex tokens
 ID
-  : LETTER (LETTER|'0'..'9')*
+  : Letter (Letter|'0'..'9')*
   ;
-  
+
+fragment Asm                : 'asm'|'__asm__'|'__asm';
+InlineAssembly
+  : Asm Volatile?
+      LParen
+          StringLiteral+ (Colon (StringLiteral (LParen ID RParen)? Comma?)* )* 
+      RParen
+    {$channel = HIDDEN;}
+  ;
+
+fragment Attribute          : '__attribute__'   ; // GNU specific
+AttributeSpecifier
+  : Attribute LParen LParen (~RParen)* RParen RParen {$channel = HIDDEN;}
+  ;
+
+
 fragment
-LETTER
+Letter
   : '$'
   | 'A'..'Z'
   | 'a'..'z'
   | '_'
   ;
 
-CHARACTER_LITERAL
+CharacterLiteral
   : 'L'? '\'' ( EscapeSequence | ~('\''|'\\') ) '\''
   ;
 
-STRING_LITERAL
+StringLiteral
   : 'L'? '"' ( EscapeSequence | ~('\\'|'"') )* '"'
   ;
 
-HEX_LITERAL 
+HexLiteral 
   : '0' ('x'|'X') HexDigit+ IntegerTypeSuffix? 
   ;
 
-DECIMAL_LITERAL 
+DecimalLiteral 
   : ('0' | '1'..'9' '0'..'9'*) IntegerTypeSuffix? 
   ;
 
-OCTAL_LITERAL 
+OctalLiteral 
   : '0' ('0'..'7')+ IntegerTypeSuffix? 
   ;
 
@@ -2420,7 +1945,7 @@ IntegerTypeSuffix
   | ('l'|'L') ('l'|'L')?
   ;
 
-FLOATING_POINT_LITERAL
+FloatingPointLiteral
   : ('0'..'9')+ '.' ('0'..'9')* Exponent? FloatTypeSuffix?
   | '.' ('0'..'9')+ Exponent? FloatTypeSuffix?
   | ('0'..'9')+ Exponent FloatTypeSuffix
@@ -2460,17 +1985,18 @@ UnicodeEscape
 WS: (' '|'\r'|'\t'|'\u000C'|'\n')+ {$channel=HIDDEN;}
   ;
 
-COMMENT
+Comment
   : '/*' ( options {greedy=false;} : . )* '*/' {$channel=HIDDEN;}
   ;
 
-LINE_COMMENT
+LineComment
   : '//' ~('\n'|'\r')* '\r'? '\n' {$channel=HIDDEN;}
   ;
 
-PREPROCESSOR_COMMAND 
+PreProcessorCommand 
   : '#' ~('\n'|'\r')* '\r'? '\n' {$channel=HIDDEN; recordHeader($line, $text);}
   ;
+
 
 
 

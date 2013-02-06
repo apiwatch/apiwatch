@@ -17,6 +17,7 @@
         <dependencySet>
             <excludes>
                 <exclude>*:war</exclude>
+                <exclude>org.apiwatch:apiwatch-annotations</exclude>
             </excludes>
             <outputDirectory>lib</outputDirectory>
             <unpack>false</unpack>

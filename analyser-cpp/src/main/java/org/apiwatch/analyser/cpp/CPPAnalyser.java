@@ -104,7 +104,7 @@ public class CPPAnalyser implements LanguageAnalyser {
             tokens.fill(); 
             CPPParser parser = new CPPParser(tokens, lexer.headers);
             parser.setTreeAdaptor(new IterableTreeAdaptor());
-            Object ast = parser.c_source().getTree();
+            Object ast = parser.translation_unit().getTree();
 
             CPPTreeWalker walker = new CPPTreeWalker(language(), sourceFile);
             walker.walk((IterableTree) ast);

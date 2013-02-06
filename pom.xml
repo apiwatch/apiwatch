@@ -49,6 +49,7 @@
         <module>cli</module>
         <module>analyser-java</module>
         <module>analyser-c</module>
+        <module>analyser-cpp</module>
         <module>serialization-json</module>
         <module>serialization-text</module>
         <module>rules-base</module>
@@ -61,7 +62,7 @@
 	    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <maven.compiler.source>1.6</maven.compiler.source>
         <maven.compiler.target>1.6</maven.compiler.target>
-        <antlr.version>3.3</antlr.version>
+        <antlr.version>3.5</antlr.version>
         <log4j.version>1.2.16</log4j.version>
 	</properties>
     
