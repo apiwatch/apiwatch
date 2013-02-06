@@ -8,6 +8,11 @@ Context & Key issues
 Pratiques et contraintes du développement logiciel
 ==================================================
 
+Practices and constraints in software development
+=================================================
+
+Software engineering respects the same staged design and delivery logic as most other engineering domains. Those stages are described in next figure.
+
 Le génie logiciel respecte la même logique de conception et de livraison par étapes que la 
 plupart des autres domaines d'ingénierie. Ces étapes sont décrites dans l'illustration suivante.
 

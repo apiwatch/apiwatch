@@ -5,45 +5,35 @@
 Diff between 2 versions
 =======================
 
-Une fois les deux versions analysées et stockées dans la base de données, on peut évaluer les 
-différences d'API et les violations qu'elles entraînent. Ceci peut être fait de deux façons 
-différentes :
+Once two versions have been analysed and their API data stored in the database, we can evaluate the API differences between them and the violations they bring. This can be done two different ways:
 
-Via l'interface web
-===================
+Through the web interface
+=========================
 
-Sur la page d'un composant, il est possible de sélectionner deux versions que l'on souhaite 
-comparer. En cliquant sur le bouton View differences between selected A and B versions, 
-le serveur APIWatch va effectuer une comparaison de l'API des deux versions sélectionnées. 
+On the page of a component, it is possible to select two versions that we wish to compare. By clicking on the "View differences between selected A and B versions" button, the APIWatch server will do a comparison of the two selected versions API.
 
 .. figure:: /images/webapp-diff.png
 
-   Sélection des versions à comparer
+   Versions to compare selection
 
-Il va ensuite évaluer toutes les différences trouvées à l'aide de règles de stabilité d'API, 
-chaque différence pouvant donc donner lieu à une ou plusieurs violations. L'Illustration suivante 
-montre le résultat de la comparaison entre les versions 1.447 et 1.466 du composant jenkins-core. 
+t will then evaluate differences found with the help of API stabiity rules, each difference being then the source of potentially one or more violations. The next figure shows the result of a comparison between versions 1.447 and 1.466 of the ``jenkins-core`` component.
 
 .. figure:: /images/webapp-violations.png
+   
+   API stability violations between two versions of the same component
 
-   Violations de stabilité d'API entre deux versions d'un même composant
-
-Pour certaines violations, il est possible d'avoir plus de détailsen cliquant sur le bouton 
-avec un symbole de loupe.
+For certain violations, you can have more details by clicking on the magnifier button.
 
 .. figure:: /images/webapp-violation-details.png
 
-   Détail d'une violation de stabilité d'API
+   Detail of an API stability violation
 
-Par ligne de commande
-=====================
+Through the command line
+========================
 
-Grâce à l'outil apidiff, on peut évaluer les violations à la stabilité d'une API entre deux 
-versions d'un même composant logiciel.
+With the apidiff tool, you can evaluate the stablity violations of an API between two versions of a software component.
 
-La syntaxe de base de la commande est : apidiff <version A> <version B> Les versions peuvent 
-être un chemin de fichier ou une URL du serveur. Voici un exemple de résultat obtenu si on 
-compare les deux versions enregistrées précédemment :
+The base syntax of the command is: apidiff <version A> <version B>. The versions can be a file path or a server URI. Here is the result of the comparison between previously recorded versions:
 
 .. code-block:: console
 
@@ -54,11 +44,7 @@ compare les deux versions enregistrées précédemment :
    ...
    [BLOCKER] <TYP001> Changed type of PUBLIC variable 'CONFIG_DELEGATE_TO' (Class -> Class<Plugin>) @ 'hudson/os/windows/ManagedWindowsServiceConnector.java:42'
 
-On peut modifier le format de sortie des violations de stabilité d'API détectées avec l'option 
--f/--format. 
+It is possible to choose the API stability violations output format with the -f/--format option.
 
-Ici, APIWatch a évalué les violations à l'aide de la configuration par défaut des règles de 
-stabilité d'API (cf. Annexe A). On peut changer cette configuration pour l'adapter à un projet 
-en utilisant l'option -r/--rules-config avec un fichier personnalisé. La version par défaut 
-d'un tel fichier se trouve dans le répertoire conf de l'installation d'APIWatch.
+Here APIWatch evaluated violations with the default API stability rules (cf. Annexe A). You can change that configuration to adapt it to a project with the -r/--reules-config option, with a custom file. The default version of the file is in the conf directory of the APIWatch installation.
 

@@ -4,16 +4,11 @@
 =============================
 Diff with a reference version
 =============================
+The apiwatch tool can be used to combine the features of apiscan and apidiff. It can analyse a set of files and directories, then compare their API with the one of a version passed as a parameter. apiscan is designed to be used in a continuous integration environment, to control API stability during development.
 
-L'outil apiwatch permet de combiner les fonctionnalités de apiscan et apidiff. Il va analyser 
-un ensemble de fichiers et dossiers, puis en comparer l'API avec celle d'une version de 
-référence passée en paramètre. apiscan sera le plus souvent utilisé en intégration continue 
-pour contrôler la stabilité des API au fur et à mesure du développement.
+The command syntax is as follows: apiwatch <reference> <files to analyse>. As with apidiff, the reference can be a file or a server URI
 
-La syntaxe de la commande est la suivante : apiwatch <reference> <fichiers à analyser>. Comme 
-pour apidiff, la référence peut être un fichier ou une URL du serveur. 
-
-Voici un exemple :
+Here is an example:
 
 .. code-block:: console
 
@@ -24,4 +19,4 @@ Voici un exemple :
    ...
    [INFO] 20 violations.
 
-La plupart des options de apiscan et apidiff s'applique également à apiwatch.
+Most apiscan and apidiff options apply to apiwatch as well.

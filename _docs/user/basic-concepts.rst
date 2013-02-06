@@ -5,110 +5,80 @@
 Basic Concepts
 ==============
 
-Architecture logicielle à base de composants
-============================================
+Component-based software architecture
+=====================================
 
-L'ingénierie logicielle à base de composants met l'accent sur la séparation des rôles dans 
-un système logiciel donné. C'est une approche fondée sur la réutilisation de modules indépendants 
-à couplage lâche : les composants.
+Component-based software architecture focuses on segregating roles in a given software system. It is an approach based on reusing loosely coupled, independent modules called components.
 
-Un composant logiciel est une unité logique destinée à être réutilisée en tant que 
-« pièce détachée » dans des applications. Il fournit le plus souvent un ensemble de services que 
-l'on peut invoquer par le biais d'interfaces définies. Un des bénéfices fondamentaux de cette 
-approche modulaire est que l'on peut substituer un composant par un autre du moment qu'il 
-respecte les mêmes interfaces.
+A software component is a logical unit supposed to be used as "spare part" in potentially multiple applications. It most often provides a set of services that can be called through well defined interfaces. One of the benefits of this modular approach is that a component can be replaced with another, as long as interfaces are the same.
 
-Dans l'Illustration 1, on peut voir un exemple d'application de gestion de commandes pour un 
-site de vente en ligne. Une telle application doit rendre de nombreux services : stockage de 
-l'historique des commandes, gestion de la comptabilité, envoi d'e-mails aux clients, etc. 
-Il serait difficile de la concevoir de manière monolithique. Pour simplifier son développement 
-et ses évolutions, on préférera une approche modulaire.
+In figure 1, we can see a web shop command management example application. Such an application must propose a number of services: command history storage, accounting management, emailing to clients, etc. It would be hard to design such an application in a monolithic way. To make its development easier, a modular approach will be preferred.
 
 .. figure:: /diagrams/components-architecture.svg
 
-   Exemple d'architecture à composants, application de gestion de commandes
+   An exemple component-based architecture, command management application
 
-Les différentes fonctionnalités de l'application sont gérées par des composants spécialisés 
-comme montré dans la table suivante. 
+The applications features are provided by specilised components, as shown in next table:
 
 ======================= ===================================================================
-Composant               Rôle/Service
+Component               Role/Service
 ======================= ===================================================================
-``OrderManagement```    Création, édition et annulation de commandes client.
-``Accounting``          Gestion comptable, édition de factures, etc.
-``PersistanceLayer``    Stockage des données de l'application.
-``Notifications``       Notifications au client et aux équipes techniques.
-``UserInterface``       Interface avec l'utilisateur.
+``OrderManagement```    Crating, editing, canceling client commands
+``Accounting``          accounting management, invoice editing, etc.
+``PersistanceLayer``    Storing application data.
+``Notifications``       Notifying clients and technical teams.
+``UserInterface``       User interface.
 ======================= ===================================================================
 
-Comme dit plus haut, on peut substituer un composant par un autre respectant les mêmes interfaces. 
-On pourra par exemple changer le composant ``PersistanceLayer`` pour qu'il stocke les données dans 
-une base relationnelle ou directement dans un système de fichiers. Et ce, sans modifier le 
-comportement global de l'application. L'autre avantage de cette approche est que – une fois les 
-rôles correctement définis – chaque composant peut être développé par des équipes différentes.
+As explained previously, a component can be replaced by another one exposing the same interfaces. For example, we can change the component ``PersistanceLayer`` so that it stores data in a relational database, or directly in a filesystem. And that can be done without changing the application's global behaviour. The other advantage of this approach is that - once roles are defined - each component can be developed by a different team.
 
-Interface de programmation
-==========================
+Programming interface
+=====================
 
-Pour exploiter les services proposés par un composant, ses congénères doivent 
-« entrer en communication » avec celui-ci. Il leur est donc nécessaire de définir au préalable 
-un « protocole » et de le respecter. En ingénierie logicielle, ce « protocole » est appelé : 
-*Application Programming Interface* ou *API*.
+To make usage of the services provided by a component, the other components must "open a channel" with it. Because of this, it is required that they beforehand define a "protocol", and respect it. In software engineering, this protocol is called: *Application Programming Interface*, or *API*.
 
-Le terme « API » peut représenter deux choses :
+The term *API* covers two different things:
 
-*  Par sa forme « instanciée » : une API est le « contrat » exposé par un composant logiciel 
-   dans lequel est stipulé la façon d'invoquer les services de celui-ci. 
-*  Par sa forme « conceptuelle » : des « informations d'API » portent des données relatives 
-   à une API.
-   
-Une API inclut généralement des spécifications de routines ou de fonctions, de structures de 
-données, de classes d'objets ou de variables que les composants doivent respecter, utiliser 
-et/ou implémenter. Les formats des fichiers écrits et/ou lus, les protocoles de communication 
-réseau, plus généralement tout échange de données entre composants à travers un support font 
-également partie de l'API.
+ *  In its "instantiated" form: an API is the contract exposed by a software component, in which is defined the way to call the services it defines.
+ *  In its "conceptual" form: "API informations" carry informations relative to an API.
 
-Reprenons l'exemple précédent ; le composant de gestion des commandes propose trois services 
-comme indiqué dans la table suivante.
+An API most often includes specifications for routines or functions, data structures, object classes or variables that components must respect, use and/or implement. Formats of read or written files, network communication protocols, an more generally any data interchange between components through a support are part of the API.
+
+Back to previous example; command management component provides three services, as shown in the next table:
 
 ================= ============================
 Service           Description
 ================= ============================
-``createOrder``   Création d'une commande.
-``modifyOrder``   Édition d'une commande.
-``cancelOrder``   Annulation d'une commande.
+``createOrder``   Create an order
+``modifyOrder``   Modify an order
+``cancelOrder``   Cancel an order
 ================= ============================
 
-Pour fonctionner, le composant ``OrderManagement`` exploite des services proposés par d'autres 
-composants comme décrit dans la table suivante.
+To work, the ``OrderManagement`` component uses services provided by other components, as shown in the next table:
 
 ================= ======================= ============================
-Service           Proposé par             Description
+Service           Provided by             Description
 ================= ======================= ============================
-``getBilling``    ``Accounting``          Création d'une commande.
-``persistOrder``  ``PersistanceLayer``    Édition d'une commande.
+``getBilling``    ``Accounting``          Creatin a command
+``persistOrder``  ``PersistanceLayer``    Editing a command
 ================= ======================= ============================
 
-Sur la figure suivante, on peut voir un schéma au format UML représentant l'API du composant 
-``OrderManagement``.
+On the next figure, we can see an UML diagram representing the API of the ``OrderManagement`` component.
 
 .. figure:: /diagrams/component-api.svg
 
-   API d'un composant logiciel : ``OrderManagement``
+   API of a software component : ``OrderManagement``
 
 
-Dépendances
-===========
+Dependencies
+============
 
-Dès qu'un composant A exploite un service fourni par un composant B, on dit que A possède une 
-dépendance directe vers B. Quand un composant dépend d'un autre, il hérite des dépendances de 
-celui-ci. On parle alors de dépendances transitives.
+As soon as a component A uses a service provided by a component B, A has a direct dependency to B. When a component depends on another, it inherits its dependencies. We then talk about trasitive dependencies.
 
-Sur l'illustration suivante, on peut voir les dépendances entre les composants ``OrderManagement``, 
-``UserInterface`` et ``PersistanceLayer`` vus dans l'exemple précédent.
+On next figure we can see the dependencies between the ``OrderManagement``, ``UserInterface`` and ``PersistanceLayer`` components, seen in previous example.
 
 .. figure:: /diagrams/components-dependencies.svg
 
-   Dépendances entre composants
+   Dependencies between components
    
    
