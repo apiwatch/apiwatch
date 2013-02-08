@@ -1,3 +1,10 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright (c) 2012, Robin Jarry. All rights reserved.               *
+ *                                                                     *
+ * This file is part of APIWATCH and published under the BSD license.  *
+ *                                                                     *
+ * See the "LICENSE" file for more information.                        *
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 package org.apiwatch.util;
 
 import java.io.IOException;
@@ -38,33 +45,31 @@ public class APIWatchExtensionProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
 
-        try {
+        Map<String, List<String>> extensions = new HashMap<String, List<String>>();
 
-            Map<String, List<String>> extensions = new HashMap<String, List<String>>();
+        for (TypeElement annotation : annotations) {
+            for (Element element : roundEnv.getElementsAnnotatedWith(annotation)) {
 
-            for (TypeElement annotation : annotations) {
-                for (Element element : roundEnv.getElementsAnnotatedWith(annotation)) {
+                TypeElement implementation = (TypeElement) element;
+                String implName = implementation.getQualifiedName().toString();
 
-                    TypeElement implementation = (TypeElement) element;
-                    String implName = implementation.getQualifiedName().toString();
+                for (TypeMirror mirror : implementation.getInterfaces()) {
 
-                    for (TypeMirror mirror : implementation.getInterfaces()) {
+                    TypeElement iface = (TypeElement) ((DeclaredType) mirror).asElement();
+                    String ifaceName = iface.getQualifiedName().toString();
 
-                        TypeElement iface = (TypeElement) ((DeclaredType) mirror).asElement();
-                        String ifaceName = iface.getQualifiedName().toString();
-
-                        if (ifaceName.startsWith("org.apiwatch.")) {
-                            if (!extensions.containsKey(ifaceName)) {
-                                extensions.put(ifaceName, new ArrayList<String>());
-                            }
-                            extensions.get(ifaceName).add(implName);
-                            messager.printMessage(Kind.NOTE, String.format(
-                                    "Found extension %s implements %s", implName, ifaceName));
+                    if (ifaceName.startsWith("org.apiwatch.")) {
+                        if (!extensions.containsKey(ifaceName)) {
+                            extensions.put(ifaceName, new ArrayList<String>());
                         }
+                        extensions.get(ifaceName).add(implName);
+                        log("Found extension %s implements %s", implName, ifaceName);
                     }
                 }
             }
+        }
 
+        try {
             for (Map.Entry<String, List<String>> e : extensions.entrySet()) {
                 String filePath = "META-INF/services/" + e.getKey();
                 FileObject file = filer.createResource(StandardLocation.CLASS_OUTPUT, "", filePath);
@@ -73,7 +78,7 @@ public class APIWatchExtensionProcessor extends AbstractProcessor {
                     writer.write(implName + "\n");
                 }
                 writer.close();
-                messager.printMessage(Kind.NOTE, "Generated file " + filePath);
+                log("Generated file %s", filePath);
             }
         } catch (IOException e) {
             messager.printMessage(Kind.ERROR, e.getMessage());
@@ -83,4 +88,10 @@ public class APIWatchExtensionProcessor extends AbstractProcessor {
         return true;
     }
 
+    private void log(String msg, Object... args) {
+        String string = String.format(msg, args);
+        messager.printMessage(Kind.NOTE, string);
+        System.out.println("[INFO] " + string);
+    }
+    
 }
