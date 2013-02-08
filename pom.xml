@@ -15,7 +15,7 @@
     <groupId>org.apiwatch</groupId>
     <artifactId>apiwatch-parent</artifactId>
     <packaging>pom</packaging>
-    <version>0.2-SNAPSHOT</version>
+    <version>0.1-SNAPSHOT</version>
     <name>APIWatch</name>
 
     <description>API stability surveillance tool</description>
@@ -45,7 +45,6 @@
   </scm>
 
     <modules>
-        <module>annotations</module>
         <module>core</module>
         <module>cli</module>
         <module>analyser-java</module>
