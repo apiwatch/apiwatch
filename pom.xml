@@ -15,7 +15,7 @@
     <groupId>org.apiwatch</groupId>
     <artifactId>apiwatch-parent</artifactId>
     <packaging>pom</packaging>
-    <version>0.1</version>
+    <version>0.2-SNAPSHOT</version>
     <name>APIWatch</name>
 
     <description>API stability surveillance tool</description>
@@ -41,7 +41,7 @@
         <connection>scm:git:git://github.com/apiwatch/apiwatch.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/apiwatch/apiwatch.git</developerConnection>
         <url>https://github.com/apiwatch/apiwatch</url>
-      <tag>apiwatch-0.1</tag>
+      <tag>HEAD</tag>
   </scm>
 
     <modules>
