@@ -379,6 +379,9 @@ public class JavaTreeWalker extends APITreeWalker {
         for (IterableTree child : ast) {
             generics.append(", ");
             switch (child.getType()) {
+            case JavaParser.QUESTION:
+                generics.append(child.getText());
+                break;
             case JavaParser.TYPE:
                 generics.append(_typeName(child));
                 break;
