@@ -5,54 +5,40 @@
 Source Code Analysis
 ====================
 
+Simple source code analysis is done with the apiscan tool. This tool can store the results of an analysis in a file or in an *APIWatch* server.
 
-L'analyse simple de code source se fait avec l'outil apiscan. Celui-ci permet de stocker les 
-résultats d'une analyse dans un fichier ou dans un serveur *APIWatch*.
+Here, we wish to analyse the API exposed by the source code of a component called ``jenkins-core``, for two different versions of it: ``1.447`` and ``1.466``. All apiscan calls will be made from a directory containing all the source code files.
 
-Ici, on souhaite analyser l'API exposée par le code source d'un composant logiciel appelé 
-``jenkins-core`` pour deux versions de celui-ci : ``1.447`` et ``1.466``. On considérera que l'appel de 
-l'outil apiscan se fait depuis un dossier contenant tous les fichiers de code source.
-
-Voici la commande nécessaire pour analyser récursivement le contenu du répertoire courant. 
-L'option ``-o/--output`` permet de spécifier l'emplacement où l'on souhaite stocker le résultat 
-de l'analyse. Ici on a fourni l'URL du serveur *APIWatch* mais on peut également donner un 
-chemin vers un répertoire et le résultat sera stocké dans un fichier ``<répertoire>/api.json``. 
-Si l'option ``-o/--output`` est omise, le résultat est envoyé vers la sortie standard :
+Here is the command used to recursively analyse the content of the working directory. The ``-o/--output`` option is used to specify the place where we wish to store the result of the analysis. Here we gave the URL of an *APIWatch* server but we can provide a directory path as well, and then the result will be stored in ``<directory>/api.json``. If ``-o/--output`` option is omitted, then then result is sent to standard output:
 
 .. code-block:: console
    
    user:src $ apiscan * -o http://localhost:8080/apiwatch/jenkins-core/1.447/
    [INFO] Sent results to URL: http://localhost:8080/apiwatch/jenkins-core/1.447/
 
-Quand on choisit d'envoyer le résultat vers le serveur APIWatch, il faut spécifier une URL 
-respectant la forme suivante [#]_ :
+When we choose to send the result to an *APIWatch* server, we have to specify an URI formatted this way [#]_:
 
-   ``<URL de base de l'application><nom du composant>/<version>/``
+``<Application base URL>/<Component name>/<version>``
 
-Sur l'Illustration suivante on peut voir la page d'accueil après avoir analysé deux versions du 
-composant ``jenkins-core``.
+On next figure we can see the homepage after having analysed two versions of the ``jenkins-core`` component:
 
 .. figure:: /images/webapp-home.png
 
-   Page d'accueil après analyse de deux versions du composant ``jenkins-core``
+   Homepage after analysis of two ``jenkins-core`` versions
 
-En cliquant sur le nom du composant, on accède au détail des versions de celui-ci :
+By clicking on the component name, we have access to details about its different analysed versions:   
 
 .. figure:: /images/webapp-component.png
 
-   Versions d'un composant logiciel
+   Versions of a software component
 
-En cliquant sur le nom d'une des versions on peut visualiser les données d'API analysées :
+By clicking on the name of one of the versions, we can visualise analysed API data:
 
 .. figure:: /images/webapp-version.png
 
-   Données d'API pour une version
+   API data for one version
 
-Les icônes utilisées sur la page représentée dans l'illustration précédente correspondent aux 
-objets du modèle d'API décrit au chapitre 3.2.1. Certaines icônes sont décorées en fonction de 
-la visibilité de l'élément qu'elles représentent. La couleur de l'icône ou de la décoration 
-donne la visibilité (rouge pour PRIVATE, jaune pour PROTECTED et bleu pour SCOPE). Si l'icône 
-est verte ou n'a pas de décoration, la visibilité de l'élément est PUBLIC :
+Icons used on the previous figure map to objects of the API model described in chapter 3.2.1. Some of the icons are decorated depending on the visibility of the element they represent. The icon or decoration color informs about the visibility  (red for PRIVATE, yellow for PROTECTED, blue for SCOPE). If the icon is green or not decorated, the visibility of the element is PUBLIC:
 
 .. |AR| image:: /_static/icons/apiscope-private.gif
 .. |AO| image:: /_static/icons/apiscope-protected.gif
@@ -82,24 +68,23 @@ est verte ou n'a pas de décoration, la visibilité de l'élément est PUBLIC :
 .. |D| image:: /_static/icons/dependency.gif
 
 ==================== ==================
-Icône(s)             Objet
+Icons                Object
 ==================== ==================
 |AR| |AO| |AU| |AS|  ``APIScope``
 |TR| |TO| |TU| |TS|  ``ComplexType``
 |FR| |FO| |FU| |FS|  ``Function``
 |VR| |VO| |VU| |VS|  ``Variable``
 |SR| |SO| |SU| |SS|  ``SimpleType``
-|D|                  Dépendance
+|D|                  Dependency
 ==================== ==================
 
 .. note:: 
 
-   Sur cette page, on peut filtrer les éléments que l'on souhaite afficher par plusieurs 
-   critères :
+   On this page, we can filter the elements we wish to show by several criteria:
 
-   *  **Leur nom** grâce au champ de recherche.
-   *  **Leur visibilité** grâce à la liste déroulante rouge en haut à droite.
+   *  **Their name** with the research field
+   *  **Their visibility** with the top-right combo-box
 
 .. rubric:: Footnotes
 
-.. [#] Si une version a déjà été stockée dans le serveur, il ne sera pas possible de l'écraser.
+.. [#] If a version is already stored on the server, it will not be possible to overwrite it.

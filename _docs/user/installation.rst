@@ -49,13 +49,10 @@ correctement installés :
    ...
 
 
-Optionnelle : Serveur de stockage
-=================================
+Optional: storage server
+========================
 
-Pour installer l'application web dans le serveur d'applications, il faut décompresser le fichier 
-/usr/lib/apiwatch-1.0/war/apiwatch-war-1.0.war dans un dossier webapps/apiwatch/ du serveur Tomcat. 
-Puis relancer ce serveur pour qu'il prenne en compte la présence d'une nouvelle application web.
-
+To install the web application in the application server, you must uncompress the /usr/lib/apiwatch-1.0/war/apiwatch-war-1.0.war file in a webapps/apiwatch/ directory of the Tomcat server, then restart this server so that it considers the presence of the new webapp.
 
 .. code-block:: console
 
@@ -69,11 +66,9 @@ Puis relancer ce serveur pour qu'il prenne en compte la présence d'une nouvelle
     * Stopping tomcat-6 ...   [ ok ]
     * Starting tomcat-6 ...   [ ok ]
 
-L'application web APIWatch devrait être accessible à l'adresse http://localhost:8080/apiwatch/. 
-Sur l'illustration suivante on peut voir une capture d'écran de la page d'accueil (aucun composant 
-logiciel n'a encore été analysé).
+The APIWatch webapp should be accessible at http://localhost:8080/apiwatch/. On the next figure we can see a screenshot of the homepage (no component has been analysed still).
 
 .. figure:: /images/webapp-installed.png
 
-   Page d'accueil de l'application web après le premier démarrage.
+   Homepage of the webapp after first start
    
