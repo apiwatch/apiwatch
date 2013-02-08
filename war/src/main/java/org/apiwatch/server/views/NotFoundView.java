@@ -54,4 +54,9 @@ public class NotFoundView extends View {
         render();
     }
 
+    @Override
+    protected void parseUrl() {
+        urlMatches = true;
+    }
+
 }

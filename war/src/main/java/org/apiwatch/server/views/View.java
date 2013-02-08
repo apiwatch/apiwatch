@@ -18,6 +18,7 @@ import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.Velocity;
 import org.apache.velocity.context.Context;
+import org.apiwatch.server.APIWatchServlet;
 import org.apiwatch.util.errors.Http404;
 
 public abstract class View {
@@ -26,21 +27,31 @@ public abstract class View {
     public static final String HTML_CONTENT_TYPE = "text/html";
     public static final String TEXT_CONTENT_TYPE = "text/plain";
     public static final String JSON_CONTENT_TYPE = "application/json";
+    protected static final Logger LOGGER = Logger.getLogger(View.class);
 
     protected final HttpServletRequest request;
     protected final HttpServletResponse response;
     protected final Context context;
-    protected static final Logger LOGGER = Logger.getLogger(View.class);
+    protected final String url;
+    protected boolean urlMatches = false;
 
     public View(HttpServletRequest req, HttpServletResponse resp) {
         this.request = req;
         this.response = resp;
+        this.url = req.getRequestURI();
         this.response.setCharacterEncoding(DEFAULT_ENCODING);
         this.context = new VelocityContext();
-        this.context.put("apiwatch_version", getClass().getPackage().getImplementationVersion());
+        this.context.put("apiwatch_version", APIWatchServlet.VERSION);
         this.context.put("page_title", "[no title]");
+        this.parseUrl();
     }
 
+    protected abstract void parseUrl();
+
+    public boolean isUrlMatches() {
+        return urlMatches;
+    }
+    
     public void get() throws ServletException, IOException, Http404 {
         response.sendError(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
     }

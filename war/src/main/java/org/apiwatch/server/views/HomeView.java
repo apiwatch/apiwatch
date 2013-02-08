@@ -46,5 +46,10 @@ public class HomeView extends View {
         }
     }
 
+    @Override
+    protected void parseUrl() {
+        urlMatches = "/".equals(url);
+    }
+
 }
 

@@ -9,10 +9,11 @@ package org.apiwatch.server;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.sql.SQLException;
 import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.jar.Attributes;
+import java.util.jar.Manifest;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -44,7 +45,7 @@ public class APIWatchServlet extends HttpServlet {
     private static final String APIWATCH_JDBC_USERNAME = "apiwatch.jdbc.username";
     private static final String APIWATCH_JDBC_PASSWORD = "apiwatch.jdbc.password";
     
-    
+    public static String VERSION = null;
 
     @Override
     public void init() throws ServletException {
@@ -58,11 +59,11 @@ public class APIWatchServlet extends HttpServlet {
                 } catch (IOException e) {
                     LOGGER.error("Failed to load user APIWATCH properties, "
                             + "falling back to default configuration", e);
-                    jdbcProps.load(getClass().getResourceAsStream(DEFAULT_APIWATCH_PROP_FILE));
+                    jdbcProps.load(getServletContext().getResourceAsStream(DEFAULT_APIWATCH_PROP_FILE));
                 }
             } else {
                 LOGGER.debug("Loading default APIWATCH properties...");
-                jdbcProps.load(getClass().getResourceAsStream(DEFAULT_APIWATCH_PROP_FILE));
+                jdbcProps.load(getServletContext().getResourceAsStream(DEFAULT_APIWATCH_PROP_FILE));
             }
 
             String jdbcUrl = Variables.resolveAll(jdbcProps.getProperty(APIWATCH_JDBC_URL));
@@ -71,10 +72,14 @@ public class APIWatchServlet extends HttpServlet {
             DBService.init(jdbcUrl, jdbcUsername, jdbcPassword);
 
             Properties velocityProps = new Properties();
-            velocityProps.load(getClass().getResourceAsStream(DEFAULT_VELOCITY_PROP_FILE));
+            velocityProps.load(getServletContext().getResourceAsStream(DEFAULT_VELOCITY_PROP_FILE));
             // force logging with log4j to avoid creation of velocity.log file...
             velocityProps.setProperty(LOG4J_LOGGER_PROPERTY, LOGGER.getName());
             Velocity.init(velocityProps);
+            
+            InputStream stream = getServletContext().getResourceAsStream("/META-INF/MANIFEST.MF");
+            Attributes attributes = new Manifest(stream).getMainAttributes();
+            VERSION = attributes.getValue("Implementation-Version");
         } catch (Exception e) {
             throw new ServletException(e);
         }
@@ -89,38 +94,31 @@ public class APIWatchServlet extends HttpServlet {
         }
     }
 
-    private static final Pattern COMPONENT_REX = Pattern.compile("^/([^/]+?)/$");
-    private static final Pattern VERSION_REX = Pattern.compile("^/([^/]+?)/([^/]+?)/$");
-    private static final Pattern DIFF_REX = Pattern.compile("^/([^/]+?)/([^/]+?)/diff/([^/]+?)/$");
+    
+    
+    
     
     private View resolveView(HttpServletRequest req, HttpServletResponse resp) {
-        String url = req.getRequestURI();
         
-        Matcher componentMatcher = COMPONENT_REX.matcher(url);
-        Matcher versionMatcher = VERSION_REX.matcher(url);
-        Matcher diffMatcher = DIFF_REX.matcher(url);
+        HomeView homeView = new HomeView(req, resp);
+        ComponentView componentView = new ComponentView(req, resp);
+        VersionView versionView = new VersionView(req, resp);
+        DiffView diffView = new DiffView(req, resp);
         
-        if ("/".equals(url)) {
-            return new HomeView(req, resp);
-        } else if (componentMatcher.matches()) {
-            String name = componentMatcher.group(1);
-            return new ComponentView(req, resp, name);
-        } else if (versionMatcher.matches()) {
-            String component = versionMatcher.group(1);
-            String version = versionMatcher.group(2);
-            return new VersionView(req, resp, component, version);
-        } else if (diffMatcher.matches()) {
-            String component = diffMatcher.group(1);
-            String versionA = diffMatcher.group(2);
-            String versionB = diffMatcher.group(3);
-            return new DiffView(req, resp, component, versionA, versionB);
+        if (homeView.isUrlMatches()) {
+            return homeView;
+        } else if (componentView.isUrlMatches()) {
+            return componentView;
+        } else if (versionView.isUrlMatches()) {
+            return versionView;
+        } else if (diffView.isUrlMatches()) {
+            return diffView;
         } else {
-            if (url.endsWith("/") == false) {
-                return new RedirectView(req, resp, url + "/");
+            if (req.getRequestURI().endsWith("/") == false) {
+                return new RedirectView(req, resp, req.getRequestURI() + "/");
             } else {
                 return new NotFoundView(req, resp);
             }
-            
         }
     }
     

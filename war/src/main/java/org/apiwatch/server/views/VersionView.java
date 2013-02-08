@@ -11,6 +11,8 @@ import java.io.IOException;
 import java.io.StringReader;
 import java.sql.SQLException;
 import java.util.concurrent.Callable;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -32,15 +34,13 @@ import com.j256.ormlite.stmt.QueryBuilder;
 
 public class VersionView extends View {
 
-    private final String component;
-    private final String version;
+    private static final Pattern URL_REGEXP = Pattern.compile("^/([^/]+?)/([^/]+?)/$");
 
-    public VersionView(HttpServletRequest req, HttpServletResponse resp, String component,
-            String version)
-    {
+    private String component;
+    private String version;
+
+    public VersionView(HttpServletRequest req, HttpServletResponse resp) {
         super(req, resp);
-        this.component = component;
-        this.version = version;
     }
 
     @Override
@@ -134,6 +134,16 @@ public class VersionView extends View {
             } else {
                 throw new ServletException(e);
             }
+        }
+    }
+
+    @Override
+    protected void parseUrl() {
+        Matcher matcher = URL_REGEXP.matcher(url);
+        urlMatches = matcher.matches();
+        if (urlMatches) {
+            component = matcher.group(1);
+            version = matcher.group(2);
         }
     }
 

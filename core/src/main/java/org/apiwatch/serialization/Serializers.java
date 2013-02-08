@@ -18,6 +18,7 @@ import java.util.Set;
 
 import org.apache.log4j.Logger;
 import org.apiwatch.analyser.Analyser;
+import org.apiwatch.models.APIElement;
 import org.apiwatch.models.APIScope;
 import org.apiwatch.models.APIStabilityViolation;
 import org.apiwatch.util.errors.SerializationError;
@@ -55,7 +56,7 @@ public class Serializers {
 
     public static Set<String> availableFormats(Class<?> dataType) {
         discoverSerializers();
-        if (APIScope.class.isAssignableFrom(dataType)) {
+        if (APIElement.class.isAssignableFrom(dataType)) {
             return APISCOPE_BY_FORMAT.keySet();
         } else if (APIStabilityViolation.class.isAssignableFrom(dataType)) {
             return VIOLATION_BY_FORMAT.keySet();

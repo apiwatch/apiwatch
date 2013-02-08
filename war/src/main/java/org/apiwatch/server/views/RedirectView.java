@@ -17,16 +17,16 @@ import org.apiwatch.util.errors.Http404;
 
 public class RedirectView extends View {
 
-    private String url;
+    private String redirectUrl;
 
-    public RedirectView(HttpServletRequest req, HttpServletResponse resp, String url) {
+    public RedirectView(HttpServletRequest req, HttpServletResponse resp, String redirectUrl) {
         super(req, resp);
-        this.url = url;
+        this.redirectUrl = redirectUrl;
     }
 
     @Override
     public void get() throws ServletException, IOException, Http404 {
-        response.sendRedirect(url);
+        response.sendRedirect(redirectUrl);
     }
 
     @Override
@@ -42,6 +42,11 @@ public class RedirectView extends View {
     @Override
     public void delete() throws ServletException, IOException, Http404 {
         get();
+    }
+
+    @Override
+    protected void parseUrl() {
+        urlMatches = true;
     }
 
 }

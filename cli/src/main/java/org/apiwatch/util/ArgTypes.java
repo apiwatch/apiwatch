@@ -80,7 +80,7 @@ public class ArgTypes {
             try {
                 if (file.isFile()) {
                     // first we read the default config
-                    InputStream ini = this.getClass().getResourceAsStream("/rules-config.ini");
+                    InputStream ini = getClass().getResourceAsStream("/rules-config.ini");
                     Map<String, Map<String, String>> iniSections = IniFile.read(ini);
 
                     // then override it with user settings

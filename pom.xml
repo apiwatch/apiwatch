@@ -49,7 +49,6 @@
         <module>cli</module>
         <module>analyser-java</module>
         <module>analyser-c</module>
-        <module>analyser-cpp</module>
         <module>serialization-json</module>
         <module>serialization-text</module>
         <module>rules-base</module>

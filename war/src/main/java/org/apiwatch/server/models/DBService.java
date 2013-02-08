@@ -31,7 +31,7 @@ public class DBService {
             IOException
     {
         LOGGER.info("Opening JDBC connection with " + url);
-        dbConnection = new JdbcConnectionSource(url.replace("\\", "\\\\"), username, password);
+        dbConnection = new JdbcConnectionSource(url.replace("\\", "/"), username, password);
         Component.initDAO(dbConnection);
         if (Component.dao().isTableExists() == false) {
             TableUtils.createTable(dbConnection, Component.class);

@@ -106,10 +106,10 @@ public class CAnalyser implements LanguageAnalyser {
             tokens.fill(); 
             CParser parser = new CParser(tokens, lexer.headers);
             parser.setTreeAdaptor(new IterableTreeAdaptor());
-            Object ast = parser.c_source().getTree();
+            IterableTree ast = parser.c_source().getTree();
 
             CTreeWalker walker = new CTreeWalker(language(), sourceFile);
-            walker.walk((IterableTree) ast);
+            walker.walk(ast);
 
             return walker.globalScope;
         } catch (RecognitionException e) {

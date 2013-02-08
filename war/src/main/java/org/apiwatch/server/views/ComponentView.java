@@ -9,6 +9,8 @@ package org.apiwatch.server.views;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
@@ -21,9 +23,8 @@ public class ComponentView extends View {
 
     private String name;
 
-    public ComponentView(HttpServletRequest req, HttpServletResponse resp, String name) {
+    public ComponentView(HttpServletRequest req, HttpServletResponse resp) {
         super(req, resp);
-        this.name = name;
     }
     
     @Override
@@ -41,6 +42,16 @@ public class ComponentView extends View {
             renderToTemplate(context);
         } catch (SQLException e) {
             throw new ServletException(e);
+        }
+    }
+
+    private static final Pattern URL_REGEXP = Pattern.compile("^/([^/]+?)/$");
+    @Override
+    protected void parseUrl() {
+        Matcher matcher = URL_REGEXP.matcher(url);
+        urlMatches = matcher.matches();
+        if (urlMatches) {
+            name= matcher.group(1);
         }
     }
     
