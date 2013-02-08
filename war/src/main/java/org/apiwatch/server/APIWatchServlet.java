@@ -59,11 +59,11 @@ public class APIWatchServlet extends HttpServlet {
                 } catch (IOException e) {
                     LOGGER.error("Failed to load user APIWATCH properties, "
                             + "falling back to default configuration", e);
-                    jdbcProps.load(getServletContext().getResourceAsStream(DEFAULT_APIWATCH_PROP_FILE));
+                    jdbcProps.load(getClass().getResourceAsStream(DEFAULT_APIWATCH_PROP_FILE));
                 }
             } else {
                 LOGGER.debug("Loading default APIWATCH properties...");
-                jdbcProps.load(getServletContext().getResourceAsStream(DEFAULT_APIWATCH_PROP_FILE));
+                jdbcProps.load(getClass().getResourceAsStream(DEFAULT_APIWATCH_PROP_FILE));
             }
 
             String jdbcUrl = Variables.resolveAll(jdbcProps.getProperty(APIWATCH_JDBC_URL));
@@ -72,14 +72,16 @@ public class APIWatchServlet extends HttpServlet {
             DBService.init(jdbcUrl, jdbcUsername, jdbcPassword);
 
             Properties velocityProps = new Properties();
-            velocityProps.load(getServletContext().getResourceAsStream(DEFAULT_VELOCITY_PROP_FILE));
+            velocityProps.load(getClass().getResourceAsStream(DEFAULT_VELOCITY_PROP_FILE));
             // force logging with log4j to avoid creation of velocity.log file...
             velocityProps.setProperty(LOG4J_LOGGER_PROPERTY, LOGGER.getName());
             Velocity.init(velocityProps);
             
             InputStream stream = getServletContext().getResourceAsStream("/META-INF/MANIFEST.MF");
-            Attributes attributes = new Manifest(stream).getMainAttributes();
-            VERSION = attributes.getValue("Implementation-Version");
+            if (stream != null) {
+                Attributes attributes = new Manifest(stream).getMainAttributes();
+                VERSION = attributes.getValue("Implementation-Version");
+            }
         } catch (Exception e) {
             throw new ServletException(e);
         }

@@ -36,7 +36,8 @@ public class Variables {
         while (m.find()) {
             String name = m.group(1) != null ? m.group(1) : m.group(2);
             String value = getValue(name, type);
-            m.appendReplacement(sb, value);
+            // appendReplacement escapes '\' characters without looking what's after them...
+            m.appendReplacement(sb, value.replaceAll("\\\\", "\\\\\\\\"));
         }
         m.appendTail(sb);
         return sb.toString();
