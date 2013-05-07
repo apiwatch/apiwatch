@@ -18,6 +18,32 @@
     <version>1.0</version>
     <packaging>jar</packaging>
 
+    <description>API stability surveillance tool</description>
+    <url>http://www.apiwatch.org/</url>
+    <inceptionYear>2012</inceptionYear>
+
+	<licenses>
+        <license>
+            <name>The New BSD License</name>
+            <url>http://www.opensource.org/licenses/bsd-license.html</url>
+        </license>
+	</licenses>
+
+    <developers>
+        <developer>
+            <id>robin-jarry</id>
+            <name>Robin Jarry</name>
+            <email>robin@jarry.cc</email>
+        </developer>
+    </developers>
+    
+    <scm>
+        <connection>scm:git:git://github.com/apiwatch/apiwatch.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/apiwatch/apiwatch.git</developerConnection>
+        <url>https://github.com/apiwatch/apiwatch</url>
+        <tag>HEAD</tag>
+    </scm>
+
     <properties>
 	    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 	    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>

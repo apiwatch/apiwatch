@@ -173,22 +173,23 @@ for %%i in ("%APIWATCH_HOME%\lib\*") do (
 )
 goto runApiwatch
 
-
-
 :runApiwatch
 set MAINCLASS=org.apiwatch.cli.APIWatch
 :: Choose main class
-if "%0" == "apiscan.cmd" (
+echo %0|findstr /i "apiscan apiscan.cmd" >NUL
+if %ERRORLEVEL% == 0 (
     set MAINCLASS=org.apiwatch.cli.APIScan
 )
-if "%0" == "apidiff.cmd" (
+echo %0|findstr /i "apidiff apidiff.cmd" >NUL
+if %ERRORLEVEL% == 0 (
     set MAINCLASS=org.apiwatch.cli.APIDiff
 )
-if "%0" == "apiwatch.cmd" (
+echo %0|findstr /i "apiwatch apiwatch.cmd" >NUL
+if %ERRORLEVEL% == 0 (
     set MAINCLASS=org.apiwatch.cli.APIWatch
 )
 
-:: Start APIWATCH2
+:: Start APIWATCH
 %APIWATCH_JAVA_EXE% %APIWATCH_OPTS% -classpath "%CLASSPATH%" %MAINCLASS% %APIWATCH_CMD_LINE_ARGS%
 if NOT ERRORLEVEL 0 goto error
 goto end
